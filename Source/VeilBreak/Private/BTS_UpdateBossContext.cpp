@@ -1,1 +1,2 @@
+// BTS_UpdateBossContext 구현용 파일, 현재 미구현
 #include "BTS_UpdateBossContext.h"
