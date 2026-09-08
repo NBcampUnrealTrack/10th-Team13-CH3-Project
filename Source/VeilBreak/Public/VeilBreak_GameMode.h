@@ -8,5 +8,8 @@ UCLASS()
 class VEILBREAK_API AVeilBreak_GameMode : public AGameMode
 {
 	GENERATED_BODY()
-	
+
+public:
+	AVeilBreak_GameMode();
+
 };
