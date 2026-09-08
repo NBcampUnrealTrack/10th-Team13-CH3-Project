@@ -120,7 +120,7 @@ private:
 	// 이동 설정
 
 	// 기본 걷기 속도
-	UPROPERTY(EditDefaultsOnly, Category = "Movement")
+	UPROPERTY(EditDefaultsOnly, Category = "Movement") 
 	float WalkSpeed = 400.0f;
 
 	// Shift 달리기 속도
