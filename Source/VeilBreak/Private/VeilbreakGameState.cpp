@@ -1,6 +1,6 @@
 ﻿#include "VeilbreakGameState.h"
 
-void AVeilbreakGameState::AVeilbreakGameState()
+AVeilbreakGameState::AVeilbreakGameState()
 {
 	Score = 0;
 }
