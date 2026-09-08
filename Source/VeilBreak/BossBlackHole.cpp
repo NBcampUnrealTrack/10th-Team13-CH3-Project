@@ -15,9 +15,10 @@ ABossBlackHole::ABossBlackHole()
 	PullRadiusComponent = CreateDefaultSubobject<USphereComponent>(TEXT("PullRadiusComponent"));
 	PullRadiusComponent->SetupAttachment(Root);
 	PullRadiusComponent->SetSphereRadius(PullRadius);
-	PullRadiusComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	PullRadiusComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
-	PullRadiusComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	// 캐릭터 캡슐이 기본 Pawn 프로필일 때 서로 Block으로 엇갈려서
+	// Overlap 이벤트가 안 터지는 문제를 피하려고, 언리얼이 미리 준비해둔
+	// "무조건 겹치기만 하는" 전용 프로필을 씀. 트리거/판정 볼륨엔 이게 정석.
+	PullRadiusComponent->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 }
 
 void ABossBlackHole::BeginPlay()
@@ -90,12 +91,9 @@ void ABossBlackHole::Tick(float DeltaTime)
 	// 판정 범위를 눈으로 볼 수 있도록 표시 (테스트용. 실제 출시 빌드에선 지워도 됨)
 	DrawDebugSphere(GetWorld(), GetActorLocation(), PullRadius, 24, FColor::Purple, false, -1.f, 0, 1.5f);
 
-	for (ACharacter* Character : AffectedCharacters)
+	if (IsValid(OverlappingCharacter))
 	{
-		if (IsValid(Character))
-		{
-			ApplyPullToCharacter(Character, DeltaTime);
-		}
+		ApplyPullToCharacter(OverlappingCharacter, DeltaTime);
 	}
 }
 
@@ -108,11 +106,20 @@ void ABossBlackHole::ApplyPullToCharacter(ACharacter* Character, float DeltaTime
 	}
 
 	const FVector PullDirection = (GetActorLocation() - Character->GetActorLocation()).GetSafeNormal();
+	const FVector PullVelocity = PullDirection * PullSpeed;
 
-	// 1차 구현: 매 프레임 속도를 직접 덮어씀.
-	// 플레이어가 반대 방향으로 이동 입력을 넣으면 힘겨루기하는 느낌이 날 수 있는데,
-	// 이건 실제 플레이 테스트로 손맛을 본 다음 필요하면 RootMotionSource 등으로 교체할 부분.
-	MoveComp->Velocity = PullDirection * PullSpeed;
+	// 플레이어가 그 순간 실제로 이동하려던 방향/세기.
+	// MaxWalkSpeed는 걷기(400)/뛰기(650) 상태에 따라 이미 팀원 캐릭터 코드에서 바뀌어 있으므로,
+	// 여기서 다시 SprintSpeed인지 WalkSpeed인지 따로 안 물어봐도 자동으로 반영된다.
+	const FVector InputDir = Character->GetLastMovementInputVector();
+	const FVector PlayerIntendedVelocity = InputDir.IsNearlyZero()
+		? FVector::ZeroVector
+		: InputDir.GetSafeNormal() * MoveComp->MaxWalkSpeed;
+
+	// 당김 속도 + 플레이어가 내려던 속도를 그대로 합산.
+	// 반대 방향으로 뛰면(전력질주 650 > 당김 500) 벡터가 상쇄되어 실제로 빠져나갈 수 있고,
+	// 걷기(400)만으로는 500을 못 이겨서 계속 끌려간다.
+	MoveComp->Velocity = PullVelocity + PlayerIntendedVelocity;
 }
 
 void ABossBlackHole::OnPullRadiusBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -120,7 +127,14 @@ void ABossBlackHole::OnPullRadiusBeginOverlap(UPrimitiveComponent* OverlappedCom
 {
 	if (ACharacter* Character = Cast<ACharacter>(OtherActor))
 	{
-		AffectedCharacters.AddUnique(Character);
+		// 보스 본인(AI 컨트롤러가 조종)이나 다른 AI 캐릭터는 무시하고,
+		// 플레이어가 직접 조종하는 캐릭터만 당김 대상으로 추적한다.
+		// 이게 없으면 블랙홀이 보스 위치에 붙어있을 때 보스 자신도 끌어당기려고 해서
+		// 보스 AI의 이동을 매 프레임 방해하게 된다.
+		if (Character->IsPlayerControlled())
+		{
+			OverlappingCharacter = Character;
+		}
 	}
 }
 
@@ -129,7 +143,9 @@ void ABossBlackHole::OnPullRadiusEndOverlap(UPrimitiveComponent* OverlappedCompo
 {
 	if (ACharacter* Character = Cast<ACharacter>(OtherActor))
 	{
-		AffectedCharacters.Remove(Character);
+		if (OverlappingCharacter == Character)
+		{
+			OverlappingCharacter = nullptr;
+		}
 	}
 }
-

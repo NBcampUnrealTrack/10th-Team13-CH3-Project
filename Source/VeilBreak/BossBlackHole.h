@@ -7,7 +7,16 @@
 class USphereComponent;
 class ACharacter;
 
-
+/**
+ * 보스 패턴 - 블랙홀
+ * 발동 시 일정 반경 안의 캐릭터를 이 액터 방향으로 일정 속도로 끌어당긴다.
+ *
+ * [테스트 방법]
+ * bAutoActivateForTesting이 켜져 있으면 BT/BTT 연동 없이도
+ * 레벨에 이 액터를 배치하고 Play만 눌러도 자동으로 켜졌다 꺼졌다를 반복한다.
+ * 실제 보스 BT에 연동할 때는 이 값을 꺼두고, BT 쪽에서
+ * ActivateBlackHole() / DeactivateBlackHole()을 직접 호출하면 된다.
+ */
 UCLASS()
 class VEILBREAK_API ABossBlackHole : public AActor
 {
@@ -50,7 +59,8 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole")
 	TObjectPtr<USphereComponent> PullRadiusComponent;
 
-	
+	// 나이아가라 이펙트는 나중에 연출 붙일 때 다시 추가.
+	// 지금은 Tick의 DrawDebugSphere로 범위를 대신 확인함.
 
 	/** 당김 판정 반경 (uu 단위, 언리얼 기본 캐릭터 캡슐 반경이 약 34uu) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
@@ -72,7 +82,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Test", meta = (EditCondition = "bAutoActivateForTesting"))
 	float TestCooldown = 3.f;
 
-	/** 테스트 모드에서 게임 시작 후 첫 발동까지 대기 시간 */
+	/** 테스트 모드에서 게임 시작 후 첫 발동까지 대기 시간 (플레이어가 이동할 시간을 줌) */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Test", meta = (EditCondition = "bAutoActivateForTesting"))
 	float InitialTestDelay = 2.f;
 
@@ -81,7 +91,7 @@ protected:
 	FTimerHandle DeactivateTimerHandle;
 	FTimerHandle AutoTestTimerHandle;
 
-	/* 현재 판정 범위 안에 들어와 있는 캐릭터 목록 */
+	/** 현재 판정 범위 안에 들어와 있는 캐릭터. 싱글 플레이어라 여러 명 관리할 필요가 없어서 단일 포인터로 관리 */
 	UPROPERTY()
-	TArray<TObjectPtr<ACharacter>> AffectedCharacters;
+	TObjectPtr<ACharacter> OverlappingCharacter;
 };
