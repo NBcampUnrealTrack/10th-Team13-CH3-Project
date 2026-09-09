@@ -9,6 +9,7 @@ class UInputAction;
 class UInputComponent;
 class UInputMappingContext;
 class UPlayerCombatComponent;
+class UPlayerHealthComponent;
 class UPlayerSkillComponent;
 class UPlayerStaminaComponent;
 class USpringArmComponent;
@@ -27,6 +28,7 @@ public:
 protected:
 	// Unreal Override
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 
 	virtual void SetupPlayerInputComponent(
 		UInputComponent* PlayerInputComponent
@@ -58,6 +60,19 @@ private:
 	// 대시 재사용 대기시간 종료
 	void ResetDash();
 
+	// 우클릭 입력으로 조준 시작
+	void StartAim();
+
+	// 우클릭 해제로 조준 종료
+	void StopAim();
+
+	// 조준 상태에 따라 카메라 거리와 시야각 변경
+	void UpdateAimCamera(float DeltaTime);
+
+	// 체력이 0이 됐을 때 플레이어 행동 정지
+	UFUNCTION()
+	void HandlePlayerDeath();
+
 private:
 	// 컴포넌트
 
@@ -79,7 +94,7 @@ private:
 	)
 	TObjectPtr<UCameraComponent> FollowCamera;
 
-	// 사격, 조준 및 재장전 담당
+	// 사격, 조준 및 재장전을 담당하는 컴포넌트
 	UPROPERTY(
 		VisibleAnywhere,
 		BlueprintReadOnly,
@@ -88,7 +103,34 @@ private:
 	)
 	TObjectPtr<UPlayerCombatComponent> PlayerCombatComponent;
 
-	// 넉백 및 경직 상태 담당
+	// 체력, 피해, 회복 및 사망 상태를 관리하는 컴포넌트
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Components",
+		meta = (AllowPrivateAccess = "true")
+	)
+	TObjectPtr<UPlayerHealthComponent> PlayerHealthComponent;
+
+	// 스킬과 궁극기를 담당하는 컴포넌트
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Components",
+		meta = (AllowPrivateAccess = "true")
+	)
+	TObjectPtr<UPlayerSkillComponent> PlayerSkillComponent;
+
+	// 달리기와 대시에 사용하는 스태미나를 관리하는 컴포넌트
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Components",
+		meta = (AllowPrivateAccess = "true")
+	)
+	TObjectPtr<UPlayerStaminaComponent> PlayerStaminaComponent;
+
+	// 넉백과 경직 등의 상태 이상을 관리하는 컴포넌트
 	UPROPERTY(
 		VisibleAnywhere,
 		BlueprintReadOnly,
@@ -98,38 +140,20 @@ private:
 	TObjectPtr<UStatusEffectReceiverComponent>
 		StatusEffectReceiverComponent;
 
-	// 스킬 및 궁극기 담당
-	UPROPERTY(
-		VisibleAnywhere,
-		BlueprintReadOnly,
-		Category = "Components",
-		meta = (AllowPrivateAccess = "true")
-	)
-	TObjectPtr<UPlayerSkillComponent> PlayerSkillComponent;
-
-	// 달리기와 대시에 사용하는 스태미나 관리
-	UPROPERTY(
-		VisibleAnywhere,
-		BlueprintReadOnly,
-		Category = "Components",
-		meta = (AllowPrivateAccess = "true")
-	)
-	TObjectPtr<UPlayerStaminaComponent> PlayerStaminaComponent;
-
 private:
 	// 이동 설정
 
-	// 기본 걷기 속도
-	UPROPERTY(EditDefaultsOnly, Category = "Movement") 
+	// 평상시 이동 속도
+	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float WalkSpeed = 400.0f;
 
-	// Shift 달리기 속도
+	// Shift를 누르고 있을 때의 이동 속도
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float SprintSpeed = 650.0f;
 
-	// 대시에 적용되는 순간 수평 속도
+	// 대시로 순간 이동하는 고정 거리
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Dash")
-	float DashStrength = 1200.0f;
+	float DashDistance = 650.0f;
 
 	// 대시 한 번에 소모되는 스태미나
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Dash")
@@ -139,13 +163,39 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Dash")
 	float DashCooldown = 0.1f;
 
-	// 현재 대시를 다시 사용할 수 있는지 저장
+	// 현재 대시를 사용할 수 있는지 저장
 	bool bCanDash = true;
+
+private:
+	// 카메라 설정
+
+	// 평상시 카메라 거리
+	UPROPERTY(EditDefaultsOnly, Category = "Camera")
+	float DefaultCameraDistance = 400.0f;
+
+	// 조준 중 카메라 거리
+	UPROPERTY(EditDefaultsOnly, Category = "Camera")
+	float AimCameraDistance = 350.0f;
+
+	// 평상시 카메라 시야각
+	UPROPERTY(EditDefaultsOnly, Category = "Camera")
+	float DefaultFieldOfView = 90.0f;
+
+	// 조준 중 카메라 시야각
+	UPROPERTY(EditDefaultsOnly, Category = "Camera")
+	float AimFieldOfView = 75.0f;
+
+	// 조준 카메라 전환 속도
+	UPROPERTY(EditDefaultsOnly, Category = "Camera")
+	float AimInterpolationSpeed = 12.0f;
+
+	// 현재 조준 중인지 저장
+	bool bIsAiming = false;
 
 private:
 	// 입력 에셋
 
-	// 플레이어의 키 매핑 설정
+	// 플레이어 키 매핑 설정
 	UPROPERTY(
 		EditDefaultsOnly,
 		BlueprintReadOnly,
