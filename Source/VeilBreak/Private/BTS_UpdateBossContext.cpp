@@ -41,20 +41,21 @@ void UBTS_UpdateBossContext::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* 
 
 	// 시전 중 이동 중지
 	const ABossCharacterBase* Boss = Cast<ABossCharacterBase>(BossPawn);
-	if (Boss && Boss->IsMagicAttackRunning())
+	if (!Boss) return;
+	if (Boss->IsMagicAttackRunning())
 	{
 		Controller->StopMovement();
 		return;
 	}
 
 	// 3000cm 초과 시 추적 시작, 2000cm 도달 시 멈춤
-	const bool bShouldChase = bIsChasingTarget ? TargetDistance > ChaseStopDistance : TargetDistance > ChaseStartDistance;
+	const bool bShouldChase = bIsChasingTarget ? TargetDistance > Boss->GetChaseStopDistance() : TargetDistance > Boss->GetChaseStartDistance();
 	if (bShouldChase)
 	{
 		// 완료 후에도 타겟이 3000cm 초과 시 재이동
 		if (Controller->GetMoveStatus() != EPathFollowingStatus::Moving)
 		{
-			Controller->MoveToActor(PlayerPawn, ChaseStopDistance);
+			Controller->MoveToActor(PlayerPawn, Boss->GetChaseStopDistance());
 		}
 		bIsChasingTarget = true;
 	}

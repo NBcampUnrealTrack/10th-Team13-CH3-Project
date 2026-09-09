@@ -29,6 +29,10 @@ public:
 	float GetMagicAttackInterval() const { return MagicAttackInterval; }
 	// Magic Attack 시전·추적 전환 거리, cm
 	float GetMagicAttackRange() const { return MagicAttackRange; }
+	// 플레이어 추적 시작 거리, cm
+	float GetChaseStartDistance() const { return ChaseStartDistance; }
+	// 플레이어 추적 종료 거리, cm
+	float GetChaseStopDistance() const { return ChaseStopDistance; }
 protected:
 	// 보스 체력·무적·사망 상태 컴포넌트
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Boss|Component")
@@ -48,8 +52,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack", meta=(ClampMin="0.1"))
 	float MagicAttackInterval = 5.f;
 	// Magic Attack 시전·추적 전환 거리, cm
-	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack", meta=(ClampMin="1"))
+	UPROPERTY(EditDefaultsOnly, Category="Boss|Distance", meta=(ClampMin="1"))
 	float MagicAttackRange = 3100.f;
+	// 플레이어 추적 시작 거리, cm
+	UPROPERTY(EditDefaultsOnly, Category="Boss|Distance", meta=(ClampMin="1"))
+	float ChaseStartDistance = 3000.f;
+	// 플레이어 추적 종료 거리, cm
+	UPROPERTY(EditDefaultsOnly, Category="Boss|Distance", meta=(ClampMin="1"))
+	float ChaseStopDistance = 2000.f;
 	// Cast 시작부터 발사까지의 지연, 초
 	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack", meta=(ClampMin="0.0"))
 	float MagicReleaseDelay = 0.2f;
