@@ -60,13 +60,13 @@ private:
 	// 대시 재사용 대기시간 종료
 	void ResetDash();
 
-	// 우클릭을 눌렀을 때 조준 시작
+	// 우클릭 입력으로 조준 시작
 	void StartAim();
 
-	// 우클릭을 뗐을 때 조준 종료
+	// 우클릭 해제로 조준 종료
 	void StopAim();
 
-	// 조준 상태에 따라 카메라를 부드럽게 전환
+	// 조준 상태에 따라 카메라 거리와 시야각 변경
 	void UpdateAimCamera(float DeltaTime);
 
 	// 체력이 0이 됐을 때 플레이어 행동 정지
@@ -74,7 +74,7 @@ private:
 	void HandlePlayerDeath();
 
 private:
-	// 컴포.uri
+	// 컴포넌트
 
 	// 3인칭 카메라 거리를 관리하는 스프링암
 	UPROPERTY(
@@ -112,7 +112,7 @@ private:
 	)
 	TObjectPtr<UPlayerHealthComponent> PlayerHealthComponent;
 
-	// 스킬 및 궁극기를 담당하는 컴포넌트
+	// 스킬과 궁극기를 담당하는 컴포넌트
 	UPROPERTY(
 		VisibleAnywhere,
 		BlueprintReadOnly,
@@ -151,9 +151,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float SprintSpeed = 650.0f;
 
-	// 대시에 적용되는 순간 수평 속도
+	// 대시로 순간 이동하는 고정 거리
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Dash")
-	float DashStrength = 1200.0f;
+	float DashDistance = 650.0f;
 
 	// 대시 한 번에 소모되는 스태미나
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Dash")
@@ -175,7 +175,7 @@ private:
 
 	// 조준 중 카메라 거리
 	UPROPERTY(EditDefaultsOnly, Category = "Camera")
-	float AimCameraDistance = 250.0f;
+	float AimCameraDistance = 350.0f;
 
 	// 평상시 카메라 시야각
 	UPROPERTY(EditDefaultsOnly, Category = "Camera")
@@ -183,7 +183,7 @@ private:
 
 	// 조준 중 카메라 시야각
 	UPROPERTY(EditDefaultsOnly, Category = "Camera")
-	float AimFieldOfView = 65.0f;
+	float AimFieldOfView = 75.0f;
 
 	// 조준 카메라 전환 속도
 	UPROPERTY(EditDefaultsOnly, Category = "Camera")
