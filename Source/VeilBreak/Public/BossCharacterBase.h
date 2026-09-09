@@ -4,6 +4,8 @@
 #include "GameFramework/Character.h"
 #include "BossCharacterBase.generated.h"
 
+class UBossStatComponent;
+
 // 보스 캐릭터 공통 부모, Sevarog 메시·idle 반복 재생 기본 설정, BP_BossCharacterBase가 상속
 UCLASS()
 class VEILBREAK_API ABossCharacterBase : public ACharacter
@@ -13,15 +15,24 @@ class VEILBREAK_API ABossCharacterBase : public ACharacter
 public:
 	// 생성자: Sevarog
 	ABossCharacterBase();
-	// 목표 좌표 방향으로 Cast 시전, 시작 성공 여부 반환
+	// TakeDamage를 BossStatComponent에 전달
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	// 보스 체력 컴포넌트 반환
+	UBossStatComponent* GetBossStatComponent() const { return BossStatComponent; }
+	// 목표 좌표로 MagicAttack 시전, 시작 성공 여부 반환
 	bool StartMagicAttack(const FVector& Target);
-	// Cast 진행 여부
+	// MagicAttack 진행 여부
 	bool IsMagicAttackRunning() const { return bMagicAttackRunning; }
-	// 이번 시전 투사체 생성 성공 여부
+	// 이번 MagicAttack 시전 투사체 생성 성공 여부
 	bool DidMagicAttackLaunch() const { return bMagicAttackLaunched; }
-	// 시전 시작 간격, 초
+	// MagicAttack 시전 시작 간격, 초
 	float GetMagicAttackInterval() const { return MagicAttackInterval; }
+	// Magic Attack 시전·추적 전환 거리, cm
+	float GetMagicAttackRange() const { return MagicAttackRange; }
 protected:
+	// 보스 체력·무적·사망 상태 컴포넌트
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Boss|Component")
+	TObjectPtr<class UBossStatComponent> BossStatComponent;
 	// 종료 시 시전 타이머 정리
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	// Idle 기본 모션
@@ -36,6 +47,9 @@ protected:
 	// 시전 시작 간격, 초
 	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack", meta=(ClampMin="0.1"))
 	float MagicAttackInterval = 5.f;
+	// Magic Attack 시전·추적 전환 거리, cm
+	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack", meta=(ClampMin="1"))
+	float MagicAttackRange = 3100.f;
 	// Cast 시작부터 발사까지의 지연, 초
 	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack", meta=(ClampMin="0.0"))
 	float MagicReleaseDelay = 0.2f;

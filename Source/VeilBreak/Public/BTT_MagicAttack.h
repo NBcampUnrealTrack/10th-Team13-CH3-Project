@@ -3,7 +3,7 @@
 #include "BTT_BossPatternBase.h"
 #include "BTT_MagicAttack.generated.h"
 
-// Cast 시전 완료 대기, 시전 시작 간격을 맞추는 다음 Idle 시간 계산
+// magic attack 시전
 UCLASS()
 class VEILBREAK_API UBTT_MagicAttack : public UBTT_BossPatternBase
 {

@@ -2,11 +2,13 @@
 #include "BossCharacterBase.h"
 #include "BossAIController.h"
 #include "BossMagicAttackActor.h"
+#include "BossStatComponent.h"
 #include "Engine/World.h"
 #include "TimerManager.h"
 
 #include "Animation/AnimSequence.h"
 #include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -17,6 +19,10 @@ ABossCharacterBase::ABossCharacterBase()
 {
 	AIControllerClass = ABossAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+	// 체력 2000·사망 이벤트 제공 컴포넌트 생성
+	BossStatComponent = CreateDefaultSubobject<UBossStatComponent>(TEXT("BossStatComponent"));
+	// 보스 고정 이동속도 300cm/s 적용
+	GetCharacterMovement()->MaxWalkSpeed = 300.f;
 	// Sevarog 메시
 	static ConstructorHelpers::FObjectFinder<USkeletalMesh> BossMesh(
 		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Meshes/Sevarog.Sevarog"));
@@ -78,6 +84,15 @@ ABossCharacterBase::ABossCharacterBase()
 	}
 }
 
+// 표준 피해 처리와 보스 체력 컴포넌트 연결
+float ABossCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	if (!BossStatComponent) return 0.f;
+	const float AppliedDamage = BossStatComponent->ApplyDamage(DamageAmount);
+	if (AppliedDamage > 0.f) Super::TakeDamage(AppliedDamage, DamageEvent, EventInstigator, DamageCauser);
+	return AppliedDamage;
+}
+
 // Cast 시작과 발사 예약, 애니메이션 상태와 독립된 타이머로 시전 종료 보장
 bool ABossCharacterBase::StartMagicAttack(const FVector& Target)
 {
@@ -120,12 +135,10 @@ void ABossCharacterBase::FinishMagicAttack()
 	if (IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
 }
 
-// 어 음.. BT루프에서 예약된 시전을 캔슬하는 용도입니다 , 이번바퀴가 돌고있는중에 보스가 죽는다던가하는
-// 정상작동여부는 체크되지 않았습니다, 이렇게 넣으면 좋다 해서 넣음
+// 종료 시 예약된 마법 시전 타이머 해제
 void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(MagicReleaseTimer);
 	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
 	Super::EndPlay(EndPlayReason);
 }
-

@@ -16,4 +16,12 @@ public:
 protected:
 	// Player 0을 찾아 TargetActor·TargetDistance 갱신
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
+	// 추적 시작 거리, cm
+	UPROPERTY(EditDefaultsOnly, Category="Boss|Movement", meta=(ClampMin="1"))
+	float ChaseStartDistance = 3000.f;
+	// 추적 종료 거리, cm
+	UPROPERTY(EditDefaultsOnly, Category="Boss|Movement", meta=(ClampMin="1"))
+	float ChaseStopDistance = 2000.f;
+	// 추적 요청 유지 여부
+	bool bIsChasingTarget = false;
 };

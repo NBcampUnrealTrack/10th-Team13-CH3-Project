@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 
 // 실행 상태를 보스별로 분리
+// 페이즈 전환 중복 실행 때문에 채용한 거였는데, 일단 당장은 없애면 문제가 생김
 UBTT_MagicAttack::UBTT_MagicAttack()
 {
     NodeName = TEXT("MagicAttack (Cast -> Player Location)");
@@ -19,12 +20,16 @@ EBTNodeResult::Type UBTT_MagicAttack::ExecuteTask(UBehaviorTreeComponent& OwnerC
     ABossCharacterBase* Boss = OwnerComp.GetAIOwner() ? Cast<ABossCharacterBase>(OwnerComp.GetAIOwner()->GetPawn()) : nullptr;
     // BB에 저장된 시전 대상
     AActor* TargetActor = Cast<AActor>(OwnerComp.GetBlackboardComponent()->GetValueAsObject(TEXT("TargetActor")));
-    if (!Boss || !TargetActor || !Boss->StartMagicAttack(TargetActor->GetActorLocation())) return EBTNodeResult::Failed;
+    // 3100cm 사거리 밖이면 시전하지 않음
+    if (!Boss || !TargetActor || FVector::DistSquared(Boss->GetActorLocation(), TargetActor->GetActorLocation()) > FMath::Square(Boss->GetMagicAttackRange())) return EBTNodeResult::Failed;
+    // 시전 동안 이동 중지 후 Cast 시작
+    OwnerComp.GetAIOwner()->StopMovement();
+    if (!Boss->StartMagicAttack(TargetActor->GetActorLocation())) return EBTNodeResult::Failed;
     StartedAt = Boss->GetWorld()->GetTimeSeconds();
     return EBTNodeResult::InProgress;
 }
 
-// Cast 소요 시간을 5초 주기에서 차감, 다음 Idle 대기값 설정
+// Cast 소요 시간을 전역 주기에서 차감, 다음 대기값 설정
 void UBTT_MagicAttack::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
     // 시전 중인 보스
