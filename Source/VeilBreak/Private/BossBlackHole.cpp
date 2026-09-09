@@ -1,4 +1,5 @@
 #include "BossBlackHole.h"
+#include "BossCharacterBase.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -28,12 +29,6 @@ void ABossBlackHole::BeginPlay()
 	PullRadiusComponent->SetSphereRadius(PullRadius);
 	PullRadiusComponent->OnComponentBeginOverlap.AddDynamic(this, &ABossBlackHole::OnPullRadiusBeginOverlap);
 	PullRadiusComponent->OnComponentEndOverlap.AddDynamic(this, &ABossBlackHole::OnPullRadiusEndOverlap);
-
-	// 테스트 모드: BT 없이도 레벨에 놓기만 하면 잠시 후 자동으로 첫 발동
-	if (bAutoActivateForTesting)
-	{
-		GetWorldTimerManager().SetTimer(AutoTestTimerHandle, this, &ABossBlackHole::ActivateBlackHole, InitialTestDelay, false);
-	}
 }
 
 void ABossBlackHole::ActivateBlackHole()
@@ -52,8 +47,26 @@ void ABossBlackHole::ActivateBlackHole()
 		GEngine->AddOnScreenDebugMessage(-1, Duration, FColor::Magenta, TEXT("BlackHole Activated"));
 	}
 
-	// BT가 종료 호출을 놓치는 경우를 대비한 자체 타이머 (테스트 모드에선 이 타이머가 곧 발동 시간)
+	// BT가 종료 호출을 놓치는 경우를 대비한 자체 타이머
 	GetWorldTimerManager().SetTimer(DeactivateTimerHandle, this, &ABossBlackHole::DeactivateBlackHole, Duration, false);
+
+	// 발동되는 이 순간 이미 범위 안에 서 있는 캐릭터가 있을 수 있음
+	// (예: 보스 손에 스폰되자마자 플레이어가 이미 근접해있는 경우).
+	// OnComponentBeginOverlap은 "들어오는 순간"에만 터지고 "이미 들어와 있는 상태"는 못 잡기 때문에,
+	// 여기서 한 번 직접 훑어서 놓치지 않게 함.
+	TArray<AActor*> AlreadyOverlapping;
+	PullRadiusComponent->GetOverlappingActors(AlreadyOverlapping, ACharacter::StaticClass());
+	for (AActor* Actor : AlreadyOverlapping)
+	{
+		if (ACharacter* Character = Cast<ACharacter>(Actor))
+		{
+			if (Character->IsPlayerControlled() && !Character->IsA<ABossCharacterBase>())
+			{
+				OverlappingCharacter = Character;
+				break;
+			}
+		}
+	}
 }
 
 void ABossBlackHole::DeactivateBlackHole()
@@ -70,12 +83,6 @@ void ABossBlackHole::DeactivateBlackHole()
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::White, TEXT("BlackHole Deactivated"));
-	}
-
-	// 테스트 모드면 잠시 쉬었다가 다시 자동 발동 (반복 테스트용)
-	if (bAutoActivateForTesting)
-	{
-		GetWorldTimerManager().SetTimer(AutoTestTimerHandle, this, &ABossBlackHole::ActivateBlackHole, TestCooldown, false);
 	}
 }
 
@@ -131,7 +138,10 @@ void ABossBlackHole::OnPullRadiusBeginOverlap(UPrimitiveComponent* OverlappedCom
 		// 플레이어가 직접 조종하는 캐릭터만 당김 대상으로 추적한다.
 		// 이게 없으면 블랙홀이 보스 위치에 붙어있을 때 보스 자신도 끌어당기려고 해서
 		// 보스 AI의 이동을 매 프레임 방해하게 된다.
-		if (Character->IsPlayerControlled())
+		// 1차 필터: AI가 조종하는 보스는 제외
+		// 2차 필터(이중 안전장치): 혹시 테스트 중 Possess 등으로 보스를 사람이 조종하게 되더라도,
+		// ABossCharacterBase 계열이면 어쨌든 당김 대상에서 제외
+		if (Character->IsPlayerControlled() && !Character->IsA<ABossCharacterBase>())
 		{
 			OverlappingCharacter = Character;
 		}
