@@ -2,15 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameState.h"
-#include "VeilbreakGameState.generated.h"
+#include "VeilBreakGameState.generated.h"
 
 UCLASS()
-class VEILBREAK_API AVeilbreakGameState : public AGameState
+class VEILBREAK_API AVeilBreakGameState : public AGameState
 {
 	GENERATED_BODY()
 	
 public:
-	AVeilbreakGameState();
+	AVeilBreakGameState();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Score")
 	int32 Score;

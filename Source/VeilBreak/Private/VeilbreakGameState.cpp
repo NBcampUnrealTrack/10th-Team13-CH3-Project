@@ -1,16 +1,16 @@
-﻿#include "VeilbreakGameState.h"
+﻿#include "VeilBreakGameState.h"
 
-AVeilbreakGameState::AVeilbreakGameState()
+AVeilBreakGameState::AVeilBreakGameState()
 {
 	Score = 0;
 }
 
-int32 AVeilbreakGameState::GetScore() const
+int32 AVeilBreakGameState::GetScore() const
 {
 	return Score;
 }
 
-void AVeilbreakGameState::AddScore(int32 Amount)
+void AVeilBreakGameState::AddScore(int32 Amount)
 {
 	Score += Amount;
 }

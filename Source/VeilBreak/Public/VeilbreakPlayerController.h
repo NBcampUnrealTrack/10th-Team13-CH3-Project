@@ -2,19 +2,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
-#include "VeilbreakPlayerController.generated.h"
+#include "VeilBreakPlayerController.generated.h"
 
 class UInputMappingContext;
 class UInputAction;
 
 UCLASS()
-class VEILBREAK_API AVeilbreakPlayerController : public APlayerController
+class VEILBREAK_API AVeilBreakPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 	
 
 public:
-	AVeilbreakPlayerController();
+	AVeilBreakPlayerController();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	UInputMappingContext* InputMappingContext;

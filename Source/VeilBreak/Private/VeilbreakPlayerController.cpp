@@ -1,7 +1,7 @@
-﻿#include "VeilbreakPlayerController.h"
+﻿#include "VeilBreakPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 
-AVeilbreakPlayerController::AVeilbreakPlayerController()
+AVeilBreakPlayerController::AVeilBreakPlayerController()
 	:InputMappingContext(nullptr),
 	MoveAction(nullptr),
 	JumpAction(nullptr), 
@@ -15,7 +15,7 @@ AVeilbreakPlayerController::AVeilbreakPlayerController()
 {
 }
 
-void AVeilbreakPlayerController::BeginPlay()
+void AVeilBreakPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
