@@ -18,15 +18,8 @@ void UPlayerCombatComponent::BeginPlay()
 	Super::BeginPlay();
 
 	// 잘못된 탄약 설정이 들어오지 않도록 최소값 보정
-	CylinderCapacity = FMath::Max(
-		CylinderCapacity,
-		1
-	);
-
-	MaxReserveAmmo = FMath::Max(
-		MaxReserveAmmo,
-		0
-	);
+	CylinderCapacity = FMath::Max(CylinderCapacity, 1);
+	MaxReserveAmmo = FMath::Max(MaxReserveAmmo, 0);
 
 	// 게임 시작 시 실린더와 예비 탄약을 최대치로 설정
 	CurrentAmmo = CylinderCapacity;
@@ -73,7 +66,7 @@ void UPlayerCombatComponent::TryFire()
 	// 사격 후 카메라에 강한 반동 적용
 	ApplyRecoil();
 
-	// 사격 애니메이션과 효과에 발사 사실 전달
+	// 실제 사격 성공을 애니메이션과 효과에 전달
 	OnWeaponFired.Broadcast();
 
 	// 다음 발사까지 사격 불가능 상태로 변경
@@ -134,17 +127,13 @@ void UPlayerCombatComponent::CancelReload()
 	}
 
 	// 진행 중인 한 발 장전 타이머 제거
-	GetWorld()->GetTimerManager().ClearTimer(
-		ReloadTimerHandle
-	);
+	GetWorld()->GetTimerManager().ClearTimer(ReloadTimerHandle);
 
 	// 재장전 상태를 종료
 	FinishReload();
 }
 
-int32 UPlayerCombatComponent::AddReserveAmmo(
-	int32 AmmoAmount
-)
+int32 UPlayerCombatComponent::AddReserveAmmo(int32 AmmoAmount)
 {
 	if (AmmoAmount <= 0)
 	{
@@ -153,8 +142,7 @@ int32 UPlayerCombatComponent::AddReserveAmmo(
 	}
 
 	// 탄약 추가 전 예비 탄약 수 저장
-	const int32 PreviousReserveAmmo =
-		ReserveAmmo;
+	const int32 PreviousReserveAmmo = ReserveAmmo;
 
 	// 예비 탄약이 최대치를 넘지 않도록 제한
 	ReserveAmmo = FMath::Clamp(
@@ -164,8 +152,7 @@ int32 UPlayerCombatComponent::AddReserveAmmo(
 	);
 
 	// 실제로 추가된 탄약 수 계산
-	const int32 AddedAmmo =
-		ReserveAmmo - PreviousReserveAmmo;
+	const int32 AddedAmmo = ReserveAmmo - PreviousReserveAmmo;
 
 	if (AddedAmmo > 0)
 	{
@@ -189,8 +176,7 @@ int32 UPlayerCombatComponent::GetReserveAmmo() const
 	return ReserveAmmo;
 }
 
-int32 UPlayerCombatComponent::
-GetCylinderCapacity() const
+int32 UPlayerCombatComponent::GetCylinderCapacity() const
 {
 	// UI에서 사용할 최대 실린더 탄약 수 반환
 	return CylinderCapacity;
@@ -205,8 +191,7 @@ bool UPlayerCombatComponent::IsReloading() const
 void UPlayerCombatComponent::PerformHitScan()
 {
 	// 전투 컴포넌트를 소유한 플레이어 확인
-	APawn* OwnerPawn =
-		Cast<APawn>(GetOwner());
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 
 	if (OwnerPawn == nullptr)
 	{
@@ -216,9 +201,7 @@ void UPlayerCombatComponent::PerformHitScan()
 
 	// 현재 플레이어를 조종하는 컨트롤러 확인
 	APlayerController* PlayerController =
-		Cast<APlayerController>(
-			OwnerPawn->GetController()
-		);
+		Cast<APlayerController>(OwnerPawn->GetController());
 
 	if (PlayerController == nullptr)
 	{
@@ -237,8 +220,7 @@ void UPlayerCombatComponent::PerformHitScan()
 
 	// 카메라가 바라보는 방향으로 사격 종료 위치 계산
 	const FVector TraceEnd =
-		ViewLocation +
-		ViewRotation.Vector() * TraceDistance;
+		ViewLocation + ViewRotation.Vector() * TraceDistance;
 
 	// 자기 자신이 사격 판정에 걸리지 않도록 제외
 	FCollisionQueryParams QueryParams;
@@ -247,20 +229,17 @@ void UPlayerCombatComponent::PerformHitScan()
 	// 카메라 중앙에서 직선 명중 판정 실행
 	FHitResult HitResult;
 
-	const bool bHit =
-		GetWorld()->LineTraceSingleByChannel(
-			HitResult,
-			ViewLocation,
-			TraceEnd,
-			ECC_Visibility,
-			QueryParams
-		);
+	const bool bHit = GetWorld()->LineTraceSingleByChannel(
+		HitResult,
+		ViewLocation,
+		TraceEnd,
+		ECC_Visibility,
+		QueryParams
+	);
 
 	// 실제 판정이 끝나는 위치 결정
 	const FVector DebugTraceEnd =
-		bHit
-		? HitResult.ImpactPoint
-		: TraceEnd;
+		bHit ? HitResult.ImpactPoint : TraceEnd;
 
 	if (bDrawDebugTrace)
 	{
@@ -283,8 +262,7 @@ void UPlayerCombatComponent::PerformHitScan()
 		return;
 	}
 
-	AActor* HitActor =
-		HitResult.GetActor();
+	AActor* HitActor = HitResult.GetActor();
 
 	if (HitActor == nullptr)
 	{
@@ -294,8 +272,7 @@ void UPlayerCombatComponent::PerformHitScan()
 
 	// 실제 총알이 진행한 방향 계산
 	const FVector ShotDirection =
-		(DebugTraceEnd - ViewLocation)
-		.GetSafeNormal();
+		(DebugTraceEnd - ViewLocation).GetSafeNormal();
 
 	// 명중한 액터에 기본 공격력 20의 점 피해 적용
 	UGameplayStatics::ApplyPointDamage(
@@ -312,8 +289,7 @@ void UPlayerCombatComponent::PerformHitScan()
 void UPlayerCombatComponent::ApplyRecoil()
 {
 	// 전투 컴포넌트를 소유한 플레이어 확인
-	APawn* OwnerPawn =
-		Cast<APawn>(GetOwner());
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 
 	if (OwnerPawn == nullptr)
 	{
@@ -323,9 +299,7 @@ void UPlayerCombatComponent::ApplyRecoil()
 
 	// 현재 플레이어의 컨트롤러 확인
 	APlayerController* PlayerController =
-		Cast<APlayerController>(
-			OwnerPawn->GetController()
-		);
+		Cast<APlayerController>(OwnerPawn->GetController());
 
 	if (PlayerController == nullptr)
 	{
@@ -334,21 +308,16 @@ void UPlayerCombatComponent::ApplyRecoil()
 	}
 
 	// 카메라를 위쪽으로 올리는 강한 수직 반동 적용
-	PlayerController->AddPitchInput(
-		-VerticalRecoil
-	);
+	PlayerController->AddPitchInput(-VerticalRecoil);
 
 	// 매 발 좌우 방향이 달라지는 무작위 반동 계산
-	const float RandomHorizontalRecoil =
-		FMath::FRandRange(
-			-HorizontalRecoil,
-			HorizontalRecoil
-		);
+	const float RandomHorizontalRecoil = FMath::FRandRange(
+		-HorizontalRecoil,
+		HorizontalRecoil
+	);
 
 	// 계산된 좌우 반동을 카메라에 적용
-	PlayerController->AddYawInput(
-		RandomHorizontalRecoil
-	);
+	PlayerController->AddYawInput(RandomHorizontalRecoil);
 }
 
 void UPlayerCombatComponent::ResetFireCooldown()
@@ -365,10 +334,7 @@ void UPlayerCombatComponent::HandleReloadRound()
 		return;
 	}
 
-	if (
-		CurrentAmmo >= CylinderCapacity ||
-		ReserveAmmo <= 0
-		)
+	if (CurrentAmmo >= CylinderCapacity || ReserveAmmo <= 0)
 	{
 		// 실린더가 가득 찼거나 예비 탄약이 없으면 종료
 		FinishReload();
@@ -382,10 +348,7 @@ void UPlayerCombatComponent::HandleReloadRound()
 	// 변경된 탄약 정보를 UI에 전달
 	BroadcastAmmoChanged();
 
-	if (
-		CurrentAmmo >= CylinderCapacity ||
-		ReserveAmmo <= 0
-		)
+	if (CurrentAmmo >= CylinderCapacity || ReserveAmmo <= 0)
 	{
 		// 더 장전할 수 없다면 재장전 종료
 		FinishReload();
@@ -420,8 +383,5 @@ void UPlayerCombatComponent::FinishReload()
 void UPlayerCombatComponent::BroadcastAmmoChanged()
 {
 	// 현재 실린더와 예비 탄약 수를 UI에 전달
-	OnAmmoChanged.Broadcast(
-		CurrentAmmo,
-		ReserveAmmo
-	);
+	OnAmmoChanged.Broadcast(CurrentAmmo, ReserveAmmo);
 }

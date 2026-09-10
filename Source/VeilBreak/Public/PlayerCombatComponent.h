@@ -22,9 +22,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 );
 
 // 사격이 정상적으로 실행됐을 때 외부 시스템에 전달
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(
-	FOnWeaponFired
-);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponFired);
 
 UCLASS(
 	ClassGroup = (Custom),
@@ -116,10 +114,7 @@ private:
 	int32 CylinderCapacity = 6;
 
 	// 현재 실린더에 장전된 탄약 수
-	UPROPERTY(
-		VisibleInstanceOnly,
-		Category = "Combat|Ammo"
-	)
+	UPROPERTY(VisibleInstanceOnly, Category = "Combat|Ammo")
 	int32 CurrentAmmo = 6;
 
 	// 플레이어가 보유할 수 있는 최대 예비 탄약 수
@@ -127,10 +122,7 @@ private:
 	int32 MaxReserveAmmo = 24;
 
 	// 현재 플레이어가 보유한 예비 탄약 수
-	UPROPERTY(
-		VisibleInstanceOnly,
-		Category = "Combat|Ammo"
-	)
+	UPROPERTY(VisibleInstanceOnly, Category = "Combat|Ammo")
 	int32 ReserveAmmo = 24;
 
 private:
@@ -150,7 +142,7 @@ private:
 
 	// 총알 한 발을 실린더에 넣는 데 필요한 시간
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Reload")
-	float ReloadTimePerRound = 0.65f;
+	float ReloadTimePerRound = 0.35f;
 
 private:
 	// 반동 설정
