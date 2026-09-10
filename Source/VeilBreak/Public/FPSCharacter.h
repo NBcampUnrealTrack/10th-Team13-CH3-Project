@@ -47,6 +47,12 @@ private:
 	// 점프 입력 종료
 	void StopJump();
 
+	// 마우스 왼쪽 버튼 입력으로 사격 시도
+	void StartFire();
+
+	// R 입력으로 한 발씩 재장전 시작
+	void StartReload();
+
 	// 스태미나가 충분하면 달리기 시작
 	void StartSprint();
 
