@@ -4,7 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "PlayerHealthComponent.generated.h"
 
-// 체력이 변경됐을 때 UI 등에 현재 체력과 최대 체력을 전달
+// 체력이 변경될 때 UI에 현재 체력과 최대 체력을 전달
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnHealthChanged,
 	float,
@@ -13,10 +13,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	MaxHealth
 );
 
-// 체력이 0이 되어 플레이어가 사망했을 때 전달
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(
-	FOnPlayerDeath
-);
+// 플레이어 체력이 0이 됐을 때 외부 시스템에 전달
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
 
 UCLASS(
 	ClassGroup = (Custom),
@@ -32,15 +30,15 @@ public:
 	UPlayerHealthComponent();
 
 public:
-	// 지정한 수치만큼 플레이어에게 피해 적용
+	// 플레이어에게 피해 적용
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void ApplyDamage(float DamageAmount);
 
-	// 지정한 수치만큼 플레이어의 체력 회복
+	// 플레이어 체력 회복
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void Heal(float HealAmount);
 
-	// 플레이어의 체력을 최대치로 초기화
+	// 플레이어 체력과 사망 상태 초기화
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void ResetHealth();
 
@@ -52,16 +50,20 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetMaxHealth() const;
 
-	// 현재 플레이어가 사망 상태인지 반환
+	// 현재 사망 상태인지 반환
 	UFUNCTION(BlueprintPure, Category = "Health")
 	bool IsDead() const;
 
+	// 마지막 피격 이후 20초 이상 지났는지 반환
+	UFUNCTION(BlueprintPure, Category = "Health|NoDamage")
+	bool HP20Seconds() const;
+
 public:
-	// 체력이 변경될 때마다 호출되는 이벤트
+	// 현재 체력이 변경됐을 때 호출
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnHealthChanged OnHealthChanged;
 
-	// 체력이 0이 되었을 때 한 번 호출되는 이벤트
+	// 플레이어가 사망했을 때 한 번 호출
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnPlayerDeath OnPlayerDeath;
 
@@ -70,30 +72,30 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
-	// 체력을 0부터 최대 체력 사이의 값으로 안전하게 변경
-	void SetCurrentHealth(float NewHealth);
-
-	// 체력이 0이 됐을 때 사망 상태로 변경
-	void HandleDeath();
+	// 변경된 체력 정보를 UI에 전달
+	void BroadcastHealthChanged();
 
 private:
 	// 체력 설정
 
-	// 플레이어가 가질 수 있는 최대 체력
+	// 플레이어의 최대 체력
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
 	float MaxHealth = 100.0f;
 
-	// 현재 플레이어가 보유한 체력
-	UPROPERTY(
-		VisibleInstanceOnly,
-		Category = "Health"
-	)
+	// 플레이어의 현재 체력
+	UPROPERTY(VisibleInstanceOnly, Category = "Health")
 	float CurrentHealth = 100.0f;
 
-	// 플레이어가 사망 상태인지 저장
-	UPROPERTY(
-		VisibleInstanceOnly,
-		Category = "Health"
-	)
+	// 현재 플레이어가 사망했는지 저장
 	bool bIsDead = false;
+
+private:
+	// 무피격 설정
+
+	// 무피격 상태로 인정되는 시간
+	UPROPERTY(EditDefaultsOnly, Category = "Health|NoDamage")
+	float NoDamageRequiredTime = 20.0f;
+
+	// 마지막으로 실제 피해를 받은 게임 시간
+	float LastDamageReceivedTime = 0.0f;
 };
