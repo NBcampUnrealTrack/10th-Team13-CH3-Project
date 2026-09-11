@@ -91,6 +91,18 @@ protected:
 	// 낙석 발사 기준 손 본 또는 소켓
 	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock")
 	FName FallingRockSpawnSocket = TEXT("hand_l");
+	// 낙석 위험 지점에 지속 표시할 Sevarog 타기팅 이펙트
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock")
+	TObjectPtr<class UParticleSystem> FallingRockWarningEffect;
+	// 낙석 패턴 시작부터 경고 표시까지 지연, 초
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock", meta=(ClampMin="0.0"))
+	float FallingRockWarningDelay = 0.2f;
+	// 경고 표시 유지 시간, 초
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock", meta=(ClampMin="0.1"))
+	float FallingRockWarningDuration = 1.8f;
+	// 경고 이펙트 월드 크기 배율
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock", meta=(ClampMin="0.1"))
+	float FallingRockWarningScale = 2.f;
 	// BP Class Defaults에서 숫자 0 체력·페이즈 순환 활성화 여부
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Boss|Debug")
 	bool bEnablePhaseDebugInput = true;
@@ -115,12 +127,22 @@ private:
 	FTimerHandle FallingRockReleaseTimer;
 	// FallingRock Idle 복귀 타이머
 	FTimerHandle FallingRockFinishTimer;
+	// FallingRock 위험 지점 경고 생성 타이머
+	FTimerHandle FallingRockWarningTimer;
+	// FallingRock 위험 지점 경고 제거 타이머
+	FTimerHandle FallingRockWarningClearTimer;
+	// 현재 표시 중인 FallingRock 위험 지점 ParticleSystem 컴포넌트
+	TObjectPtr<class UParticleSystemComponent> FallingRockWarningComponent;
 	// 손 위치에서 목표로 투사체 생성
 	void ReleaseMagicAttack();
 	// Cast 종료 후 Idle 반복 재생 복귀
 	void FinishMagicAttack();
-	// 보스 위쪽 위치에서 낙석 액터 생성
+	// 보스 손 위치에서 낙석 액터 생성
 	void ReleaseFallingRock();
+	// 시전 시 저장한 바닥 목표에 위험 지점 경고 생성
+	void ShowFallingRockWarning();
+	// 현재 위험 지점 경고 비활성화·제거
+	void ClearFallingRockWarning();
 	// Ultimate Swing 종료 후 Idle 반복 재생 복귀
 	void FinishFallingRock();
 };

@@ -21,9 +21,21 @@ protected:
 	// 낙석 시각화용 DragonCave Static Mesh
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="FallingRock")
 	TObjectPtr<class UStaticMeshComponent> RockMesh;
+	// 착지 이펙트 범위와 추후 데미지 판정을 위한 구형 Overlap 콜리전
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="FallingRock")
+	TObjectPtr<class USphereComponent> ImpactCollision;
 	// 목표 도달 지점의 AuraFX Sand 이펙트
 	UPROPERTY(EditDefaultsOnly, Category="FallingRock")
 	TObjectPtr<class UNiagaraSystem> ArrivalEffect;
+	// 착지 이펙트 월드 크기 배율
+	UPROPERTY(EditDefaultsOnly, Category="FallingRock", meta=(ClampMin="0.1"))
+	float ImpactEffectScale = 2.f;
+	// 착지 Overlap 콜리전 반경, cm
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FallingRock", meta=(ClampMin="1"))
+	float ImpactCollisionRadius = 300.f;
+	// 착지 Overlap 콜리전 활성 유지 시간, 초
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FallingRock", meta=(ClampMin="0.01"))
+	float ImpactCollisionDuration = 0.2f;
 	// 포물선 비행 시간, 초
 	UPROPERTY(EditDefaultsOnly, Category="FallingRock", meta=(ClampMin="0.1"))
 	float FlightDuration = 1.2f;
@@ -42,6 +54,8 @@ private:
 	float ElapsedFlightTime = 0.f;
 	// 포물선 비행 활성 상태
 	bool bLaunched = false;
-	// 목표 위치의 AuraFX Sand 생성 후 액터 삭제
+	// 목표 위치의 AuraFX Sand 생성·착지 콜리전 활성화
 	void FinishFallingRock();
+	// 착지 콜리전 유지시간 종료 후 액터 삭제
+	void FinishImpactCollision();
 };

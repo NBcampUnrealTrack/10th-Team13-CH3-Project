@@ -4,6 +4,9 @@
 #include "BossMagicAttackActor.h"
 #include "BossFallingRockActor.h"
 #include "BossStatComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Particles/ParticleSystem.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
@@ -47,10 +50,14 @@ ABossCharacterBase::ABossCharacterBase()
 	// 낙석 시전용 Ultimate Swing 모션
 	static ConstructorHelpers::FObjectFinder<UAnimSequence> UltimateSwingAnimation(
 		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Ultimate_Swing_120fps.Ultimate_Swing_120fps"));
+	// 낙석 위험 지점 표시용 Sevarog 지속 타기팅 이펙트
+	static ConstructorHelpers::FObjectFinder<UParticleSystem> FallingRockWarning(
+		TEXT("/Game/ParagonSevarog/FX/Particles/Abilities/SoulSiphon/FX/P_SiphonTargeting.P_SiphonTargeting"));
 	if (CastAnimation.Succeeded()) CastMotion = CastAnimation.Object;
 	MagicAttackClass = MagicBlueprint.Succeeded() ? MagicBlueprint.Class.Get() : ABossMagicAttackActor::StaticClass();
 	FallingRockClass = FallingRockBlueprint.Succeeded() ? FallingRockBlueprint.Class.Get() : ABossFallingRockActor::StaticClass();
 	if (UltimateSwingAnimation.Succeeded()) FallingRockMotion = UltimateSwingAnimation.Object;
+	if (FallingRockWarning.Succeeded()) FallingRockWarningEffect = FallingRockWarning.Object;
 	// 피격용 Physics Asset
 	static ConstructorHelpers::FObjectFinder<UPhysicsAsset> BossPhysicsAsset(
 		TEXT("/Game/Boss/Physics/PA_BossSevarog_ShadowCyl.PA_BossSevarog_ShadowCyl"));
@@ -132,14 +139,47 @@ bool ABossCharacterBase::StartFallingRock(const FVector& Target)
 	if (IsPatternRunning() || !FallingRockMotion || !IdleMotion || !FallingRockClass || !GetWorld()) return false;
 	const float Duration = FallingRockMotion->GetPlayLength();
 	if (Duration <= 0.f) return false;
-	FallingRockTarget = Target;
+	// 플레이어 위치 위쪽에서 아래로 검사할 지면 Trace 시작점
+	const FVector GroundTraceStart = Target + FVector(0.f, 0.f, 5000.f);
+	// 플레이어 위치 아래쪽까지 검사할 지면 Trace 끝점
+	const FVector GroundTraceEnd = Target - FVector(0.f, 0.f, 10000.f);
+	// 보스 자신을 제외하는 지면 Trace 조건
+	FCollisionQueryParams GroundTraceParams(SCENE_QUERY_STAT(FallingRockGroundTrace), false, this);
+	// WorldStatic 바닥만 찾는 지면 Trace 대상
+	FCollisionObjectQueryParams GroundObjectParams(ECC_WorldStatic);
+	// 지면 Trace 충돌 결과
+	FHitResult GroundHit;
+	// 점프 중인 플레이어를 건너뛰고 시전 위치 아래 바닥을 목표로 저장
+	FallingRockTarget = GetWorld()->LineTraceSingleByObjectType(GroundHit, GroundTraceStart, GroundTraceEnd, GroundObjectParams, GroundTraceParams) ? GroundHit.ImpactPoint : Target;
 	const FVector ToTarget = FallingRockTarget - GetActorLocation();
 	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.f, ToTarget.Rotation().Yaw, 0.f));
 	bFallingRockRunning = true;
 	GetMesh()->PlayAnimation(FallingRockMotion, false);
+	GetWorldTimerManager().SetTimer(FallingRockWarningTimer, this, &ABossCharacterBase::ShowFallingRockWarning, FallingRockWarningDelay, false);
 	GetWorldTimerManager().SetTimer(FallingRockReleaseTimer, this, &ABossCharacterBase::ReleaseFallingRock, FMath::Clamp(FallingRockReleaseDelay, 0.01f, Duration * 0.95f), false);
+	GetWorldTimerManager().SetTimer(FallingRockWarningClearTimer, this, &ABossCharacterBase::ClearFallingRockWarning, FallingRockWarningDelay + FallingRockWarningDuration, false);
 	GetWorldTimerManager().SetTimer(FallingRockFinishTimer, this, &ABossCharacterBase::FinishFallingRock, Duration, false);
 	return true;
+}
+
+// 시전 0.2초 뒤 바닥 목표 위치에 Sevarog 타기팅 경고 표시
+void ABossCharacterBase::ShowFallingRockWarning()
+{
+	if (!bFallingRockRunning || !FallingRockWarningEffect || !GetWorld()) return;
+	ClearFallingRockWarning();
+	// 지면 겹침 방지용으로 2cm 올린 경고 표시 위치
+	const FVector WarningLocation = FallingRockTarget + FVector(0.f, 0.f, 2.f);
+	// 낙석 도착 위치를 알리는 지속 ParticleSystem 경고 컴포넌트
+	FallingRockWarningComponent = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), FallingRockWarningEffect, FTransform(FRotator::ZeroRotator, WarningLocation, FVector(FallingRockWarningScale)), true, EPSCPoolMethod::None, true);
+}
+
+// 표시 중인 낙석 경고를 즉시 종료하고 참조 해제
+void ABossCharacterBase::ClearFallingRockWarning()
+{
+	if (!FallingRockWarningComponent) return;
+	FallingRockWarningComponent->DeactivateSystem();
+	FallingRockWarningComponent->DestroyComponent();
+	FallingRockWarningComponent = nullptr;
 }
 
 // 표준 피해 처리와 보스 체력 컴포넌트 연결
@@ -222,5 +262,8 @@ void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockReleaseTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockFinishTimer);
+	GetWorldTimerManager().ClearTimer(FallingRockWarningTimer);
+	GetWorldTimerManager().ClearTimer(FallingRockWarningClearTimer);
+	ClearFallingRockWarning();
 	Super::EndPlay(EndPlayReason);
 }

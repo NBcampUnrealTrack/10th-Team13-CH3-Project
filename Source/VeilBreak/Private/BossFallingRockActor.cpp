@@ -1,8 +1,10 @@
 #include "BossFallingRockActor.h"
+#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInterface.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
 // DragonCave Rock 메시와 착지 이펙트 설정
@@ -11,7 +13,19 @@ ABossFallingRockActor::ABossFallingRockActor()
 	PrimaryActorTick.bCanEverTick = true;
 	RockMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("RockMesh"));
 	SetRootComponent(RockMesh);
+	// 기존 낙석 대비 2배 크기 적용
+	RockMesh->SetRelativeScale3D(FVector(2.f));
 	RockMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	// 착지 시점에만 활성화할 추후 데미지 판정용 구형 콜리전
+	ImpactCollision = CreateDefaultSubobject<USphereComponent>(TEXT("ImpactCollision"));
+	ImpactCollision->SetupAttachment(RockMesh);
+	ImpactCollision->SetAbsolute(false, false, true);
+	ImpactCollision->InitSphereRadius(ImpactCollisionRadius);
+	ImpactCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ImpactCollision->SetCollisionObjectType(ECC_WorldDynamic);
+	ImpactCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	ImpactCollision->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	ImpactCollision->SetGenerateOverlapEvents(true);
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Rock(TEXT("/Game/DragonCave/Meshes/SM_LargeRock03.SM_LargeRock03"));
 	// DragonCave LargeRock03 표면 머티리얼
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> RockMaterial(TEXT("/Game/DragonCave/Materials/MI_LargeRocks03.MI_LargeRocks03"));
@@ -46,9 +60,22 @@ void ABossFallingRockActor::Tick(float DeltaSeconds)
 	if (Alpha >= 1.f) FinishFallingRock();
 }
 
-// 착지 이펙트 재생 후 낙석 액터 제거
+// 착지 이펙트 2배 재생과 추후 데미지용 Overlap 콜리전 활성화
 void ABossFallingRockActor::FinishFallingRock()
 {
-	if (ArrivalEffect) UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ArrivalEffect, TargetLocation);
+	bLaunched = false;
+	RockMesh->SetVisibility(false, true);
+	ImpactCollision->SetSphereRadius(ImpactCollisionRadius, true);
+	ImpactCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	if (ArrivalEffect) UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ArrivalEffect, TargetLocation, FRotator::ZeroRotator, FVector(ImpactEffectScale));
+	// 착지 판정이 유지되는 시간 뒤 액터 제거
+	FTimerHandle ImpactCollisionTimer;
+	GetWorldTimerManager().SetTimer(ImpactCollisionTimer, this, &ABossFallingRockActor::FinishImpactCollision, ImpactCollisionDuration, false);
+}
+
+// 착지 Overlap 판정 종료 후 낙석 액터 제거
+void ABossFallingRockActor::FinishImpactCollision()
+{
+	ImpactCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Destroy();
 }
