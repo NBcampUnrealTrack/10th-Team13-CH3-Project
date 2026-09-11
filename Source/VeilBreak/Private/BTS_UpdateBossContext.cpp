@@ -1,6 +1,7 @@
 #include "BTS_UpdateBossContext.h"
 #include "AIController.h"
 #include "BossCharacterBase.h"
+#include "BossStatComponent.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -42,6 +43,8 @@ void UBTS_UpdateBossContext::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* 
 	// 시전 중 이동 중지
 	const ABossCharacterBase* Boss = Cast<ABossCharacterBase>(BossPawn);
 	if (!Boss) return;
+	// 체력 컴포넌트의 현재 페이즈를 Blackboard에 반영
+	if (const UBossStatComponent* Stat = Boss->GetBossStatComponent()) Blackboard->SetValueAsInt(TEXT("CurrentPhase"), static_cast<int32>(Stat->GetCurrentPhase()));
 	if (Boss->IsMagicAttackRunning())
 	{
 		Controller->StopMovement();

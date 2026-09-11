@@ -2,8 +2,12 @@
 #include "BossCharacterBase.h"
 #include "BossAIController.h"
 #include "BossMagicAttackActor.h"
+#include "BossFallingRockActor.h"
 #include "BossStatComponent.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
+#include "GameFramework/PlayerController.h"
+#include "InputCoreTypes.h"
 #include "TimerManager.h"
 
 #include "Animation/AnimSequence.h"
@@ -17,6 +21,8 @@
 // 생성자: 로드 성공한 에셋을 Mesh 기본값에 적용, 상속 BP에서 변경 가능
 ABossCharacterBase::ABossCharacterBase()
 {
+	// Player 0 디버그 키 상태 확인용 Tick 활성화
+	PrimaryActorTick.bCanEverTick = true;
 	AIControllerClass = ABossAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	// 체력 2000·사망 이벤트 제공 컴포넌트 생성
@@ -35,8 +41,16 @@ ABossCharacterBase::ABossCharacterBase()
 	// Fire 투사체 상속 BP
 	static ConstructorHelpers::FClassFinder<ABossMagicAttackActor> MagicBlueprint(
 		TEXT("/Game/Boss/Patterns/BP_BossMagicAttack"));
+	// 낙석 투사체 상속 BP
+	static ConstructorHelpers::FClassFinder<ABossFallingRockActor> FallingRockBlueprint(
+		TEXT("/Game/Boss/Patterns/BP_BossFallingRock"));
+	// 낙석 시전용 Ultimate Swing 모션
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> UltimateSwingAnimation(
+		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Ultimate_Swing_120fps.Ultimate_Swing_120fps"));
 	if (CastAnimation.Succeeded()) CastMotion = CastAnimation.Object;
 	MagicAttackClass = MagicBlueprint.Succeeded() ? MagicBlueprint.Class.Get() : ABossMagicAttackActor::StaticClass();
+	FallingRockClass = FallingRockBlueprint.Succeeded() ? FallingRockBlueprint.Class.Get() : ABossFallingRockActor::StaticClass();
+	if (UltimateSwingAnimation.Succeeded()) FallingRockMotion = UltimateSwingAnimation.Object;
 	// 피격용 Physics Asset
 	static ConstructorHelpers::FObjectFinder<UPhysicsAsset> BossPhysicsAsset(
 		TEXT("/Game/Boss/Physics/PA_BossSevarog_ShadowCyl.PA_BossSevarog_ShadowCyl"));
@@ -82,6 +96,50 @@ ABossCharacterBase::ABossCharacterBase()
 		GetMesh()->AnimationData.bSavedPlaying = true;
 		GetMesh()->AnimationData.SavedPlayRate = 1.0f;
 	}
+}
+
+// Player 0의 실제 키 입력 상태에서 숫자 0 Pressed 감지
+void ABossCharacterBase::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (!bEnablePhaseDebugInput || !GetWorld()) return;
+	// 현재 플레이어 캐릭터를 조작하는 Player 0 Controller
+	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
+	if (!PlayerController) return;
+	// 상단 숫자 0 또는 숫자패드 0의 이번 프레임 입력 여부
+	const bool bDebugKeyPressed = PlayerController->WasInputKeyJustPressed(EKeys::Zero) || PlayerController->WasInputKeyJustPressed(EKeys::NumPadZero);
+	if (bDebugKeyPressed) CycleDebugHealthPhase();
+}
+
+// Phase1 2000·Phase2 1000·Phase3 400 체력 순환 적용
+void ABossCharacterBase::CycleDebugHealthPhase()
+{
+	if (!BossStatComponent) return;
+	// 각 페이즈 내부에 확실히 포함되는 대표 체력 비율
+	constexpr float DebugHealthPercents[] = { 1.f, 0.5f, 0.2f };
+	// 현재 순번에 대응하는 디버그 체력
+	const float DebugHealth = BossStatComponent->GetMaxHealth() * DebugHealthPercents[DebugPhaseIndex];
+	BossStatComponent->SetHealthForDebug(DebugHealth);
+	DebugPhaseIndex = (DebugPhaseIndex + 1) % UE_ARRAY_COUNT(DebugHealthPercents);
+	// 화면에 표시할 현재 페이즈 번호
+	const int32 PhaseNumber = static_cast<int32>(BossStatComponent->GetCurrentPhase()) + 1;
+	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, FString::Printf(TEXT("Boss Debug - Health: %.0f / %.0f, Phase: %d"), BossStatComponent->GetCurrentHealth(), BossStatComponent->GetMaxHealth(), PhaseNumber));
+}
+
+// Ultimate Swing 재생과 0.8초 뒤 낙석 발사 예약
+bool ABossCharacterBase::StartFallingRock(const FVector& Target)
+{
+	if (IsPatternRunning() || !FallingRockMotion || !IdleMotion || !FallingRockClass || !GetWorld()) return false;
+	const float Duration = FallingRockMotion->GetPlayLength();
+	if (Duration <= 0.f) return false;
+	FallingRockTarget = Target;
+	const FVector ToTarget = FallingRockTarget - GetActorLocation();
+	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.f, ToTarget.Rotation().Yaw, 0.f));
+	bFallingRockRunning = true;
+	GetMesh()->PlayAnimation(FallingRockMotion, false);
+	GetWorldTimerManager().SetTimer(FallingRockReleaseTimer, this, &ABossCharacterBase::ReleaseFallingRock, FMath::Clamp(FallingRockReleaseDelay, 0.01f, Duration * 0.95f), false);
+	GetWorldTimerManager().SetTimer(FallingRockFinishTimer, this, &ABossCharacterBase::FinishFallingRock, Duration, false);
+	return true;
 }
 
 // 표준 피해 처리와 보스 체력 컴포넌트 연결
@@ -135,10 +193,34 @@ void ABossCharacterBase::FinishMagicAttack()
 	if (IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
 }
 
+// 시전 시 저장한 목표를 향해 보스 손에서 포물선 낙석 생성
+void ABossCharacterBase::ReleaseFallingRock()
+{
+	if (!bFallingRockRunning || !GetWorld()) return;
+	// 손 소켓이 없을 경우 캐릭터 위치 위쪽을 발사점으로 사용
+	const FVector SpawnLocation = GetMesh()->DoesSocketExist(FallingRockSpawnSocket) ? GetMesh()->GetSocketLocation(FallingRockSpawnSocket) : GetActorLocation() + FVector(0.f, 0.f, 100.f);
+	// 낙석 소유자와 충돌 무관 생성 정책
+	FActorSpawnParameters Params;
+	Params.Owner = this;
+	Params.Instigator = this;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	// 손에서 생성돼 시전 순간 목표 위치로 비행하는 낙석
+	if (ABossFallingRockActor* Rock = GetWorld()->SpawnActor<ABossFallingRockActor>(FallingRockClass, SpawnLocation, FRotator::ZeroRotator, Params)) Rock->LaunchAt(FallingRockTarget);
+}
+
+// 낙석 시전 상태 종료와 Idle 복귀
+void ABossCharacterBase::FinishFallingRock()
+{
+	bFallingRockRunning = false;
+	if (IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
+}
+
 // 종료 시 예약된 마법 시전 타이머 해제
 void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorldTimerManager().ClearTimer(MagicReleaseTimer);
 	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
+	GetWorldTimerManager().ClearTimer(FallingRockReleaseTimer);
+	GetWorldTimerManager().ClearTimer(FallingRockFinishTimer);
 	Super::EndPlay(EndPlayReason);
 }

@@ -16,7 +16,7 @@ ABossAIController::ABossAIController()
     if (Tree.Succeeded()) BTAsset = Tree.Object;
 }
 
-// 첫 대기값을 공격 간격으로 초기화, BT의 Wait → MagicAttack 반복
+// Blackboard 초기화 후 BT의 Wait → 패턴 선택 반복 시작
 void ABossAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
@@ -43,7 +43,6 @@ void ABossAIController::OnPossess(APawn* InPawn)
             BossBlackboard->SetValueAsObject(TEXT("TargetActor"), PlayerPawn);
             BossBlackboard->SetValueAsFloat(TEXT("TargetDistance"), FVector::Distance(Boss->GetActorLocation(), PlayerPawn->GetActorLocation()));
         }
-        BossBlackboard->SetValueAsFloat(TEXT("MagicAttackWaitTime"), Boss->GetMagicAttackInterval());
         RunBehaviorTree(BTAsset);
     }
 }
