@@ -5,6 +5,8 @@
 #include "BTT_BossBlackHole.generated.h"
 
 class ABossBlackHole;
+class UAnimSequence;
+class USoundBase;
 
 /**
  * BT Task - 블랙홀 발동
@@ -39,11 +41,36 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "BlackHole")
 	FName SpawnSocketName = TEXT("head");
 
+	/**
+	 * 소켓 위치 기준 오프셋. 소켓 자신의 로컬 좌표계 기준이라, 손이 어느 방향을 향하든
+	 * 항상 "손바닥 기준 이 방향"으로 일정하게 띄워짐. X: 앞, Y: 옆, Z: 위.
+	 * 소켓이 손 안쪽(뼈 원점)에 있어서 메시랑 겹쳐 보일 때 이 값으로 띄우면 됨.
+	 */
+	UPROPERTY(EditAnywhere, Category = "BlackHole")
+	FVector SpawnOffset = FVector(0.f, 0.f, 15.f);
+
+	/** 블랙홀 시전 시 재생할 애니메이션. 비워두면 애니메이션 없이 스폰만 됨 */
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation")
+	TObjectPtr<UAnimSequence> CastAnimation;
+
+	/** 블랙홀 종료 후 되돌아갈 애니메이션(보통 Idle). 비워두면 캐스트 애니메이션 마지막 프레임에 멈춰있음 */
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation")
+	TObjectPtr<UAnimSequence> IdleAnimationAfter;
+
+	/** 블랙홀 시전 시 재생할 사운드. 비워두면 소리 없음 */
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation")
+	TObjectPtr<USoundBase> ActivationSound;
+
+	/** 사운드 크기 배율. 1.0이 원본 크기, 0.5면 절반, 2.0이면 두 배 */
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation", meta = (ClampMin = "0.0"))
+	float ActivationSoundVolume = 1.f;
+
 private:
 	/** 이 Task 하나가 실행되는 동안 유지해야 하는 임시 데이터 */
 	struct FBTBlackHoleMemory
 	{
 		TWeakObjectPtr<ABossBlackHole> SpawnedBlackHole;
+		TWeakObjectPtr<class ABossCharacterBase> Boss;
 		float ElapsedTime = 0.f;
 	};
 

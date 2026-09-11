@@ -5,6 +5,9 @@
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequence.h"
+#include "Sound/SoundBase.h"
+#include "Kismet/GameplayStatics.h"
 
 UBTT_BossBlackHole::UBTT_BossBlackHole()
 {
@@ -34,11 +37,14 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 		return EBTNodeResult::Failed;
 	}
 
-	// 소켓이 있으면 소켓 위치, 없으면 캡슐 상단 + 여유 높이로 대체
+	// 소켓이 있으면 소켓의 로컬 좌표계 기준으로 오프셋을 적용한 위치, 없으면 캡슐 상단 + 여유 높이로 대체
 	FVector SpawnLocation;
 	if (Boss->GetMesh() && Boss->GetMesh()->DoesSocketExist(SpawnSocketName))
 	{
-		SpawnLocation = Boss->GetMesh()->GetSocketLocation(SpawnSocketName);
+		// GetSocketTransform으로 소켓의 위치+회전을 같이 가져와서,
+		// SpawnOffset을 "소켓이 보는 방향 기준"으로 변환함 (손이 어떻게 돌아가 있어도 항상 같은 방향으로 띄워짐)
+		const FTransform SocketTransform = Boss->GetMesh()->GetSocketTransform(SpawnSocketName);
+		SpawnLocation = SocketTransform.TransformPosition(SpawnOffset);
 	}
 	else
 	{
@@ -65,6 +71,19 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 
 	Spawned->ActivateBlackHole();
 	Memory->SpawnedBlackHole = Spawned;
+	Memory->Boss = Boss;
+
+	// 캐스트 애니메이션 재생 (BossCharacterBase의 마법공격이랑 같은 방식: PlayAnimation으로 직접 재생)
+	if (CastAnimation && Boss->GetMesh())
+	{
+		Boss->GetMesh()->PlayAnimation(CastAnimation, false);
+	}
+
+	// 발동 사운드 재생 (블랙홀 스폰 위치에서 3D로 재생)
+	if (ActivationSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(Boss, ActivationSound, SpawnLocation, ActivationSoundVolume);
+	}
 
 	// 아직 안 끝났다는 뜻. BT는 이 상태를 계속 유지하면서 매 프레임 TickTask를 불러줌
 	return EBTNodeResult::InProgress;
@@ -99,4 +118,11 @@ void UBTT_BossBlackHole::CleanUpBlackHole(FBTBlackHoleMemory* Memory)
 		Memory->SpawnedBlackHole->Destroy();
 	}
 	Memory->SpawnedBlackHole = nullptr;
+
+	// 캐스트 애니메이션이 끝난 자세로 멈춰있지 않도록 Idle로 복귀
+	if (IdleAnimationAfter && Memory->Boss.IsValid() && Memory->Boss->GetMesh())
+	{
+		Memory->Boss->GetMesh()->PlayAnimation(IdleAnimationAfter, true);
+	}
+	Memory->Boss = nullptr;
 }

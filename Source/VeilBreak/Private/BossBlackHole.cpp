@@ -1,9 +1,14 @@
 #include "BossBlackHole.h"
 #include "BossCharacterBase.h"
 #include "Components/SphereComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
+#include "Components/AudioComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "DrawDebugHelpers.h"
+#include "UObject/ConstructorHelpers.h"
 
 ABossBlackHole::ABossBlackHole()
 {
@@ -20,6 +25,39 @@ ABossBlackHole::ABossBlackHole()
 	// Overlap 이벤트가 안 터지는 문제를 피하려고, 언리얼이 미리 준비해둔
 	// "무조건 겹치기만 하는" 전용 프로필을 씀. 트리거/판정 볼륨엔 이게 정석.
 	PullRadiusComponent->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
+
+	// 눈에 보이는 구체. 판정용이 아니라 순수 장식이라 콜리전은 꺼둠
+	VisualSphere = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VisualSphere"));
+	VisualSphere->SetupAttachment(Root);
+	VisualSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	VisualSphere->SetCastShadow(false);
+	VisualSphere->SetVisibility(false); // 발동 전엔 숨김
+
+	// 엔진 기본 제공 구체 메시. 나중에 아티스트가 만든 전용 메시로 교체 가능
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	if (SphereMeshFinder.Succeeded())
+	{
+		VisualSphere->SetStaticMesh(SphereMeshFinder.Object);
+	}
+
+	// 발동 중 계속 도는 루프 사운드. Sound 애셋은 여기서 지정 안 하고
+	// BP_BossBlackHole의 Components 패널에서 직접 할당함 (VisualSphere 메시랑 같은 방식)
+	LoopingSound = CreateDefaultSubobject<UAudioComponent>(TEXT("LoopingSound"));
+	LoopingSound->SetupAttachment(Root);
+	LoopingSound->bAutoActivate = false; // BeginPlay/스폰 즉시 재생되지 않게, Activate 호출 시에만 재생
+
+	// 손 위 구체를 중심으로 사방으로 부풀어오르는 파동. 평평한 원반이 아니라
+	// 실제로 커지는 얇은 구 껍질(shell)로 만들어서 "사방으로 퍼진다"는 느낌을 줌
+	ShockwaveDisc = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShockwaveDisc"));
+	ShockwaveDisc->SetupAttachment(Root);
+	ShockwaveDisc->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	ShockwaveDisc->SetCastShadow(false);
+	ShockwaveDisc->SetVisibility(false); // 발동 전엔 숨김
+
+	if (SphereMeshFinder.Succeeded())
+	{
+		ShockwaveDisc->SetStaticMesh(SphereMeshFinder.Object);
+	}
 }
 
 void ABossBlackHole::BeginPlay()
@@ -29,6 +67,20 @@ void ABossBlackHole::BeginPlay()
 	PullRadiusComponent->SetSphereRadius(PullRadius);
 	PullRadiusComponent->OnComponentBeginOverlap.AddDynamic(this, &ABossBlackHole::OnPullRadiusBeginOverlap);
 	PullRadiusComponent->OnComponentEndOverlap.AddDynamic(this, &ABossBlackHole::OnPullRadiusEndOverlap);
+
+	// VisualSphere 크기는 여기서 자동 계산하지 않음.
+	// BP_BossBlackHole의 Class Defaults에서 아티스트가 Transform > Scale로 직접 조절한 값을 그대로 씀.
+	if (BlackHoleMaterial)
+	{
+		VisualSphere->SetMaterial(0, BlackHoleMaterial);
+	}
+
+	// RangeDistortionSphere는 반대로 자동 계산함 - 실제 판정 반경(PullRadius)이랑
+	// 시각적으로 어긋나면 안 되는 값이라, 엔진 기본 구체 메시(반지름 50uu 고정)를 기준으로 역산
+	if (ShockwaveMaterial)
+	{
+		ShockwaveDisc->SetMaterial(0, ShockwaveMaterial);
+	}
 }
 
 void ABossBlackHole::ActivateBlackHole()
@@ -40,6 +92,14 @@ void ABossBlackHole::ActivateBlackHole()
 
 	bIsActive = true;
 	SetActorTickEnabled(true);
+	VisualSphere->SetVisibility(true);
+	ShockwaveDisc->SetVisibility(true);
+	ShockwaveElapsed = 0.f; // 파동을 처음(크기 0)부터 다시 시작
+
+	if (LoopingSound && LoopingSound->Sound)
+	{
+		LoopingSound->Play();
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[BossBlackHole] Activated (Radius=%.0f, Speed=%.0f, Duration=%.1f)"), PullRadius, PullSpeed, Duration);
 	if (GEngine)
@@ -78,6 +138,9 @@ void ABossBlackHole::DeactivateBlackHole()
 
 	bIsActive = false;
 	SetActorTickEnabled(false);
+	VisualSphere->SetVisibility(false);
+	ShockwaveDisc->SetVisibility(false);
+	LoopingSound->Stop();
 	GetWorldTimerManager().ClearTimer(DeactivateTimerHandle);
 
 	if (GEngine)
@@ -97,6 +160,20 @@ void ABossBlackHole::Tick(float DeltaTime)
 
 	// 판정 범위를 눈으로 볼 수 있도록 표시 (테스트용. 실제 출시 빌드에선 지워도 됨)
 	DrawDebugSphere(GetWorld(), GetActorLocation(), PullRadius, 24, FColor::Purple, false, -1.f, 0, 1.5f);
+
+	// 파동 원반을 실제로 키움: 0초일 땐 크기 0, ShockwaveInterval초가 지나면 PullRadius 크기가 됨.
+	// 그 순간 ShockwaveElapsed를 0으로 리셋해서 처음부터 다시 시작 -> 계속 반복되는 파동
+	ShockwaveElapsed += DeltaTime;
+	if (ShockwaveElapsed >= ShockwaveInterval)
+	{
+		ShockwaveElapsed = 0.f;
+	}
+	const float ShockwaveProgress = ShockwaveElapsed / ShockwaveInterval; // 0~1
+	constexpr float DefaultEngineSphereRadius = 50.f; // 엔진 기본 구체 메시의 실제 반지름(uu)
+	// (1 - Progress)를 써서 반대로 만듦: 0초일 땐 PullRadius(범위 끝)만큼 크다가,
+	// ShockwaveInterval초가 지나면 크기 0(중심)까지 줄어듦 -> 밖에서 안으로 빨려들어가는 파동
+	const float CurrentWorldRadius = (1.f - ShockwaveProgress) * PullRadius;
+	ShockwaveDisc->SetRelativeScale3D(FVector(CurrentWorldRadius / DefaultEngineSphereRadius));
 
 	if (IsValid(OverlappingCharacter))
 	{
