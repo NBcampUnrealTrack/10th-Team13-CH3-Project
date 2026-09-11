@@ -11,6 +11,8 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "TimerManager.h"
+#include "Sound/SoundBase.h"
+
 
 AGroundSmashAttack::AGroundSmashAttack()
 {
@@ -20,6 +22,10 @@ AGroundSmashAttack::AGroundSmashAttack()
 
 void AGroundSmashAttack::ActivateAttack()
 {
+    if (!IsAttacking())
+    {
+        return;
+    }
     waveActive = false;
     playerHit = false;
     // Task가 Owner로 지정한 보스의 현재 위치
@@ -58,7 +64,7 @@ void AGroundSmashAttack::ActivateAttack()
 
         GetWorldTimerManager().ClearTimer(AnimationTimer);
         RestoreAnimation();
-        FinishWave();
+        FinishAttack();
         return;
     }
 
@@ -83,23 +89,102 @@ void AGroundSmashAttack::ActivateAttack()
             Effect->Activate(true);
         }
     }
-
+    if (SmashSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(
+            this,
+            SmashSound,
+            GetActorLocation()
+        );
+    }
     waveActive = true;
 
     UE_LOG(LogTemp, Log, TEXT("Wave Starte!!!!!!!!@@!!!!"));
+    
+    CurrentStrikeCount++;
+
+    UE_LOG(
+        LogTemp,
+        Log,
+        TEXT("GroundSmash Strike %d / %d"),
+        CurrentStrikeCount,
+        StrikeCount
+    );
+
+
 }
 //--------------------비사ㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅏㅇ 먼말인지 모르겠음
 void AGroundSmashAttack::Tick(float DeltaTime)//파장을 조금씩 확대
 {
     Super::Tick(DeltaTime);
+    if (IsAttacking())
+    {
+        PatternElapsedTime += DeltaTime;
 
+        if (PatternElapsedTime >= PatternDuration)
+        {
+            waveActive = false;
+
+            // 남은 애니메이션 종료 취소
+            GetWorldTimerManager().ClearTimer(AnimationTimer);
+            GetWorldTimerManager().ClearTimer(StrikeTimer);
+            GetWorldTimerManager().ClearTimer(PreparationTimer);
+            RestoreAnimation();
+
+            // 모든 링 이펙트 정지
+            for (UNiagaraComponent* Effect : WaveEffects)
+            {
+                if (IsValid(Effect))
+                {
+                    Effect->DeactivateImmediate();
+                }
+            }
+
+            FinishAttack();
+            return;
+        }
+    }
     if (animationRunning && (!IsAttacking() || !IsValid(GetOwner())))
     {
         GetWorldTimerManager().ClearTimer(AnimationTimer);
         RestoreAnimation();
         CancelAttack();
     }
+    if (IsAttacking() &&
+        IsValid(GetOwner()) &&
+        IsValid(BossMesh) &&
+        CurrentStrikeCount > 0 &&
+        CurrentStrikeCount < StrikeCount &&
+        !animationRunning &&
+        !waveActive &&
+        !GetWorldTimerManager().IsTimerActive(StrikeTimer))
+    {
+        // 1번 찍었으면 다음 타격은 6초, 2번이면 12초
+        const float NextStrikeTime =
+            CurrentStrikeCount * StrikeInterval;
 
+        // 타격 시점보다 ImpactDelay만큼 먼저 애니메이션 시작
+        if (PatternElapsedTime >= NextStrikeTime - ImpactDelay &&
+            PatternElapsedTime + ImpactDelay < PatternDuration)
+        {
+            PlaySmashAnimation();
+
+            if (ImpactDelay <= 0.0f)
+            {
+                ActivateAttack();
+            }
+            else
+            {
+                GetWorldTimerManager().SetTimer(
+                    StrikeTimer,
+                    this,
+                    &AGroundSmashAttack::ActivateAttack,
+                    ImpactDelay,
+                    false
+                );
+            }
+        }
+    }
     if (!waveActive)
     {
         return;
@@ -250,6 +335,23 @@ void AGroundSmashAttack::CheckPlayerHit(float PreviousRadius)
     // 부모 클래스의 Damage 값 사용
     Health->ApplyDamage(Damage);
 
+    FVector KnockbackDirection = PlayerLocation - WaveLocation;
+
+    // 높이 차이는 빼고 수평 방향만 사용
+    KnockbackDirection.Z = 0.0f;
+
+    // 거리에 관계없이 방향의 길이를 1로 맞춤
+    KnockbackDirection = KnockbackDirection.GetSafeNormal();
+   
+    // 바깥쪽으로 밀어낼 속도
+    FVector KnockbackVelocity = KnockbackDirection * 600.0f;
+
+    // 위로 살짝 띄우기
+    KnockbackVelocity.Z = 200.0f;
+
+    // 플레이어에게 적용
+    Player->LaunchCharacter(KnockbackVelocity, true, true);
+
     UE_LOG(
         LogTemp,
         Log,
@@ -285,17 +387,47 @@ bool AGroundSmashAttack::StartAnimatedAttack()//애니메이션부터 시작
     previousPlaying = Previous->IsPlaying();
     previousRate = Previous->GetPlayRate();
     previousTime = Previous->GetCurrentTime();
-    animationRunning = true;
-    waveFinished = false;
 
-    BossMesh->PlayAnimation(GroundSmashMotion, false);
-    BossMesh->SetPlayRate(1.f); //애니메이션 한 번
-    GetWorldTimerManager().SetTimer(AnimationTimer, this,
-        &AGroundSmashAttack::FinishAnimation, Duration, false);
+    // 준비 시간이 애니메이션의 타격 시점보다 짧으면 실행 불가
+    if (PreparationTime < ImpactDelay)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("PreparationTime must be >= ImpactDelay"));
+        return false;
+    }
 
-    WarningDuration = ImpactDelay;
+    CurrentStrikeCount = 0;
+
+    // 준비 시간이 지나면 0부터 공격 실행 시간을 계산
+    PatternElapsedTime = -PreparationTime;
+
+    // 준비 시간이 끝나면 첫 파장 발동
+    WarningDuration = PreparationTime;
     StartAttack();
-    return IsAttacking();
+
+    if (!IsAttacking())
+    {
+        return false;
+    }
+    
+    // 첫 파장이 나올 때 애니메이션의 타격 순간도 맞추기
+    const float AnimationDelay = PreparationTime - ImpactDelay;
+
+    if (AnimationDelay <= 0.f)
+    {
+        PlaySmashAnimation();
+    }
+    else
+    {
+        GetWorldTimerManager().SetTimer(
+            PreparationTimer,
+            this,
+            &AGroundSmashAttack::PlaySmashAnimation,
+            AnimationDelay,
+            false
+        );
+    }
+
+    return true;
 }
 
 void AGroundSmashAttack::RestoreAnimation()
@@ -316,22 +448,51 @@ void AGroundSmashAttack::RestoreAnimation()
     }
 }
 
-void AGroundSmashAttack::FinishAnimation()//파장이 남아 있으면 공격은 계속 유지
+void AGroundSmashAttack::FinishAnimation()
 {
+    //스킬 끝나면 애니메이션 복귀
     RestoreAnimation();
-    if (waveFinished) FinishAttack();
 }
 
-void AGroundSmashAttack::FinishWave()//파장이 끝났더라도 애니메이션이 진행 중이면대기
+void AGroundSmashAttack::FinishWave()
 {
+    //WAVE 한번이 끝났다는 표시
     waveFinished = true;
-    if (!animationRunning) FinishAttack();
 }
 
 void AGroundSmashAttack::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     GetWorldTimerManager().ClearTimer(AnimationTimer);
+    GetWorldTimerManager().ClearTimer(StrikeTimer);
+    GetWorldTimerManager().ClearTimer(PreparationTimer);
     CancelAttack();
     RestoreAnimation();
     Super::EndPlay(EndPlayReason);
+}
+
+void AGroundSmashAttack::PlaySmashAnimation()
+{
+    animationRunning = true;
+    waveFinished = false;
+
+    BossMesh->PlayAnimation(GroundSmashMotion, false);
+    BossMesh->SetPlayRate(1.f);
+
+    const float Duration = GroundSmashMotion->GetPlayLength();
+
+    GetWorldTimerManager().SetTimer(
+        AnimationTimer,
+        this,
+        &AGroundSmashAttack::FinishAnimation,
+        Duration,
+        false
+    );
+    if (VoiceSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(
+            this,
+            VoiceSound,
+            BossMesh->GetComponentLocation()
+        );
+    }
 }
