@@ -16,10 +16,10 @@ ABossLoopDummy::ABossLoopDummy()
 
 	SetRootComponent(DummyMesh);
 
-	// 테스트용 기본값입니다.
+	// 테스트용 기본값
 	MaxHealth = 1000.0f;
 	CurrentHealth = 1000.0f;
-	CurrentPhase = EVeilBreakBossPhase::Phase1;
+	CurrentPhase = EBossPhase::Phase1;
 
 	bRunAutomaticTest = true;
 	AutomaticDamageAmount = 250.0f;
@@ -30,8 +30,10 @@ void ABossLoopDummy::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CurrentHealth = FMath::Max(MaxHealth, 1.0f);
-	CurrentPhase = EVeilBreakBossPhase::Phase1;
+	// 0으로 나누는 문제 방지
+	MaxHealth = FMath::Max(MaxHealth, 1.0f);
+	CurrentHealth = MaxHealth;
+	CurrentPhase = EBossPhase::Phase1;
 
 	ShowStatusOnScreen();
 
@@ -60,7 +62,8 @@ void ABossLoopDummy::ApplyTestDamage(
 	float DamageAmount
 )
 {
-	if (CurrentPhase == EVeilBreakBossPhase::Dead)
+	// 체력이 이미 0이면 추가 피해를 처리하지 않음
+	if (CurrentHealth <= 0.0f)
 	{
 		return;
 	}
@@ -77,10 +80,10 @@ void ABossLoopDummy::ApplyTestDamage(
 	);
 
 	UpdatePhase();
-
 	ShowStatusOnScreen();
 
-	if (CurrentPhase == EVeilBreakBossPhase::Dead)
+	// 사망은 Phase가 아니라 체력 상태로 판정
+	if (CurrentHealth <= 0.0f)
 	{
 		GetWorldTimerManager().ClearTimer(
 			AutomaticDamageTimerHandle
@@ -96,25 +99,24 @@ void ABossLoopDummy::ApplyTestDamage(
 
 void ABossLoopDummy::UpdatePhase()
 {
+	// 사망했으면 페이즈를 변경하지 않음
 	if (CurrentHealth <= 0.0f)
 	{
-		CurrentPhase = EVeilBreakBossPhase::Dead;
 		return;
 	}
 
 	const float HealthRatio =
 		CurrentHealth / MaxHealth;
 
-	EVeilBreakBossPhase NewPhase =
-		EVeilBreakBossPhase::Phase1;
+	EBossPhase NewPhase = EBossPhase::Phase1;
 
 	if (HealthRatio <= 0.34f)
 	{
-		NewPhase = EVeilBreakBossPhase::Phase3;
+		NewPhase = EBossPhase::Phase3;
 	}
 	else if (HealthRatio <= 0.67f)
 	{
-		NewPhase = EVeilBreakBossPhase::Phase2;
+		NewPhase = EBossPhase::Phase2;
 	}
 
 	if (CurrentPhase == NewPhase)
@@ -142,9 +144,7 @@ void ABossLoopDummy::ShowStatusOnScreen() const
 
 	const FString StatusMessage =
 		FString::Printf(
-			TEXT(
-				"Dummy Boss | HP: %.0f / %.0f | %s"
-			),
+			TEXT("Dummy Boss | HP: %.0f / %.0f | %s"),
 			CurrentHealth,
 			MaxHealth,
 			*PhaseText
@@ -152,23 +152,26 @@ void ABossLoopDummy::ShowStatusOnScreen() const
 
 	FColor MessageColor = FColor::White;
 
-	switch (CurrentPhase)
+	if (CurrentHealth <= 0.0f)
 	{
-	case EVeilBreakBossPhase::Phase1:
-		MessageColor = FColor::Green;
-		break;
-
-	case EVeilBreakBossPhase::Phase2:
-		MessageColor = FColor::Yellow;
-		break;
-
-	case EVeilBreakBossPhase::Phase3:
-		MessageColor = FColor::Red;
-		break;
-
-	case EVeilBreakBossPhase::Dead:
 		MessageColor = FColor::Purple;
-		break;
+	}
+	else
+	{
+		switch (CurrentPhase)
+		{
+		case EBossPhase::Phase1:
+			MessageColor = FColor::Green;
+			break;
+
+		case EBossPhase::Phase2:
+			MessageColor = FColor::Yellow;
+			break;
+
+		case EBossPhase::Phase3:
+			MessageColor = FColor::Red;
+			break;
+		}
 	}
 
 	GEngine->AddOnScreenDebugMessage(
@@ -181,19 +184,21 @@ void ABossLoopDummy::ShowStatusOnScreen() const
 
 FString ABossLoopDummy::GetPhaseText() const
 {
+	if (CurrentHealth <= 0.0f)
+	{
+		return TEXT("Dead");
+	}
+
 	switch (CurrentPhase)
 	{
-	case EVeilBreakBossPhase::Phase1:
+	case EBossPhase::Phase1:
 		return TEXT("Phase 1");
 
-	case EVeilBreakBossPhase::Phase2:
+	case EBossPhase::Phase2:
 		return TEXT("Phase 2");
 
-	case EVeilBreakBossPhase::Phase3:
+	case EBossPhase::Phase3:
 		return TEXT("Phase 3");
-
-	case EVeilBreakBossPhase::Dead:
-		return TEXT("Dead");
 
 	default:
 		return TEXT("Unknown");

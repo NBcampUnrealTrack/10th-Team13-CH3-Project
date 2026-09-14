@@ -9,7 +9,7 @@ UCLASS()
 class VEILBREAK_API AVeilBreakGameState : public AGameState
 {
 	GENERATED_BODY()
-	
+
 public:
 	AVeilBreakGameState();
 
@@ -27,7 +27,7 @@ public:
 		BlueprintReadOnly,
 		Category = "Game Loop"
 	)
-	EVeilBreakBossPhase CurrentBossPhase;
+	EBossPhase CurrentBossPhase;
 
 	// 현재 전투 결과
 	UPROPERTY(
@@ -41,7 +41,7 @@ public:
 	EVeilBreakGameLoopState GetCurrentGameLoopState() const;
 
 	UFUNCTION(BlueprintPure, Category = "Game Loop")
-	EVeilBreakBossPhase GetCurrentBossPhase() const;
+	EBossPhase GetCurrentBossPhase() const;
 
 	UFUNCTION(BlueprintPure, Category = "Game Loop")
 	EVeilBreakBattleResult GetBattleResult() const;
@@ -51,19 +51,20 @@ public:
 	);
 
 	void SetCurrentBossPhase(
-		EVeilBreakBossPhase NewPhase
+		EBossPhase NewPhase
 	);
 
 	void SetBattleResult(
 		EVeilBreakBattleResult NewResult
 	);
 
-	//점수 치환은 추후 진행
+	// 점수 치환은 추후 진행
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Score")
 	int32 Score;
+
 	UFUNCTION(BlueprintPure, Category = "Score")
 	int32 GetScore() const;
+
 	UFUNCTION(BlueprintCallable, Category = "Score")
 	void AddScore(int32 Amount);
 };
-	
