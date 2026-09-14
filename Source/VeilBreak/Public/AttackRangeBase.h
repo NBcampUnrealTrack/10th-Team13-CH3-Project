@@ -20,7 +20,7 @@ public:
     void CancelAttack();
 
 protected:
-    //지금 공격~~~~!!!!!!!!!!!!!!
+    //지금 공격
     virtual void ActivateAttack();
 
     // 공격 종료
