@@ -224,6 +224,28 @@ void AFPSCharacter::SetupPlayerInputComponent(
 		);
 	}
 
+	if (FireAction != nullptr)
+	{
+		// 마우스 왼쪽 버튼을 누른 순간 리볼버 사격 시도
+		EnhancedInputComponent->BindAction(
+			FireAction,
+			ETriggerEvent::Started,
+			this,
+			&AFPSCharacter::StartFire
+		);
+	}
+
+	if (ReloadAction != nullptr)
+	{
+		// R을 누른 순간 한 발씩 재장전 시작
+		EnhancedInputComponent->BindAction(
+			ReloadAction,
+			ETriggerEvent::Started,
+			this,
+			&AFPSCharacter::StartReload
+		);
+	}
+
 	if (SprintAction != nullptr)
 	{
 		// Shift를 처음 누른 순간 달리기 시작
@@ -361,6 +383,66 @@ void AFPSCharacter::StopJump()
 {
 	// 점프 입력이 끝났음을 ACharacter에 전달
 	StopJumping();
+}
+
+void AFPSCharacter::StartFire()
+{
+	if (
+		PlayerHealthComponent != nullptr &&
+		PlayerHealthComponent->IsDead()
+		)
+	{
+		// 사망한 상태에서는 사격 불가
+		return;
+	}
+
+	if (
+		StatusEffectReceiverComponent != nullptr &&
+		StatusEffectReceiverComponent->IsCrowdControlled()
+		)
+	{
+		// 경직이나 넉백 등의 CC 상태에서는 사격 불가
+		return;
+	}
+
+	if (PlayerCombatComponent == nullptr)
+	{
+		// 전투 컴포넌트가 없으면 사격 불가
+		return;
+	}
+
+	// 전투 컴포넌트에서 탄약과 발사 간격을 확인한 뒤 사격
+	PlayerCombatComponent->TryFire();
+}
+
+void AFPSCharacter::StartReload()
+{
+	if (
+		PlayerHealthComponent != nullptr &&
+		PlayerHealthComponent->IsDead()
+		)
+	{
+		// 사망한 상태에서는 재장전 불가
+		return;
+	}
+
+	if (
+		StatusEffectReceiverComponent != nullptr &&
+		StatusEffectReceiverComponent->IsCrowdControlled()
+		)
+	{
+		// 경직이나 넉백 등의 CC 상태에서는 재장전 불가
+		return;
+	}
+
+	if (PlayerCombatComponent == nullptr)
+	{
+		// 전투 컴포넌트가 없으면 재장전 불가
+		return;
+	}
+
+	// 실린더가 가득 차거나 예비 탄약이 없을 때는 컴포넌트가 거부
+	PlayerCombatComponent->StartReload();
 }
 
 void AFPSCharacter::StartSprint()
