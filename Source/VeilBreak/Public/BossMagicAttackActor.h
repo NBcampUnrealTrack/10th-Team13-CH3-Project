@@ -3,13 +3,13 @@
 #include "BossPatternActorBase.h"
 #include "BossMagicAttackActor.generated.h"
 
-// 지정 좌표로 이동, 플레이어 충돌체를 가진 Fire 마법 투사체
+// 지정 좌표로 이동, 플레이어 충돌체와 Dark 반복 이펙트를 가진 마법 투사체
 UCLASS(Blueprintable)
 class VEILBREAK_API ABossMagicAttackActor : public ABossPatternActorBase
 {
     GENERATED_BODY()
 public:
-    // 이동 및 Fire 이펙트 기본값 생성
+    // 이동 및 Dark 이펙트 기본값 생성
     ABossMagicAttackActor();
     // 목표 좌표 설정, 발사 방향 정렬
     void LaunchAt(const FVector& InTarget);
@@ -22,10 +22,10 @@ protected:
     // 플레이어 피격 감지용 작은 구형 콜리전
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MagicAttack")
     TObjectPtr<class USphereComponent> HitCollision;
-    // SlashTrail Fire 반복 이펙트
+    // 액터와 함께 이동하는 NS_SlashTrail_Dark_Loop 이펙트
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="MagicAttack")
     TObjectPtr<class UNiagaraComponent> FireEffect;
-    // 도착 지점의 일회성 AuraFX Fire 이펙트
+    // 도착 지점의 일회성 AuraFX Mystic 이펙트
     UPROPERTY(EditDefaultsOnly, Category="MagicAttack")
     TObjectPtr<class UNiagaraSystem> ArrivalEffect;
     // 초당 이동 거리, cm/s

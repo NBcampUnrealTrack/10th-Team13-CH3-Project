@@ -15,20 +15,33 @@ class VEILBREAK_API ABossCharacterBase : public ACharacter
 public:
 	// 생성자: Sevarog
 	ABossCharacterBase();
+	// Player 0 숫자 0 입력 감지, 디버그 체력·페이즈 순환 호출
+	virtual void Tick(float DeltaSeconds) override;
+	// 숫자 0 입력마다 Phase1·2·3 대표 체력 순환
+	UFUNCTION(BlueprintCallable, Category="Boss|Debug")
+	void CycleDebugHealthPhase();
 	// TakeDamage를 BossStatComponent에 전달
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 	// 보스 체력 컴포넌트 반환
 	UBossStatComponent* GetBossStatComponent() const { return BossStatComponent; }
+	
 	// 목표 좌표로 MagicAttack 시전, 시작 성공 여부 반환
 	bool StartMagicAttack(const FVector& Target);
+	// 목표 좌표로 FallingRock 시전, 시작 성공 여부 반환
+	bool StartFallingRock(const FVector& Target);
 	// MagicAttack 진행 여부
 	bool IsMagicAttackRunning() const { return bMagicAttackRunning; }
+	// FallingRock 시전 진행 여부
+	bool IsFallingRockRunning() const { return bFallingRockRunning; }
+	// MagicAttack·FallingRock 중 하나라도 시전 중인지 반환
+	bool IsPatternRunning() const { return bMagicAttackRunning || bFallingRockRunning; }
 	// 이번 MagicAttack 시전 투사체 생성 성공 여부
 	bool DidMagicAttackLaunch() const { return bMagicAttackLaunched; }
-	// MagicAttack 시전 시작 간격, 초
-	float GetMagicAttackInterval() const { return MagicAttackInterval; }
 	// Magic Attack 시전·추적 전환 거리, cm
 	float GetMagicAttackRange() const { return MagicAttackRange; }
+	// FallingRock 시전 거리, cm
+	float GetFallingRockRange() const { return FallingRockRange; }
+	
 	// 플레이어 추적 시작 거리, cm
 	float GetChaseStartDistance() const { return ChaseStartDistance; }
 	// 플레이어 추적 종료 거리, cm
@@ -48,12 +61,18 @@ protected:
 	// 생성할 마법 투사체 BP 클래스
 	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack")
 	TSubclassOf<class ABossMagicAttackActor> MagicAttackClass;
-	// 시전 시작 간격, 초
-	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack", meta=(ClampMin="0.1"))
-	float MagicAttackInterval = 5.f;
+	// 생성할 낙석 투사체 BP 클래스
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock")
+	TSubclassOf<class ABossFallingRockActor> FallingRockClass;
+	// Sevarog Ultimate Swing 모션
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock")
+	TObjectPtr<class UAnimSequence> FallingRockMotion;
 	// Magic Attack 시전·추적 전환 거리, cm
 	UPROPERTY(EditDefaultsOnly, Category="Boss|Distance", meta=(ClampMin="1"))
 	float MagicAttackRange = 3100.f;
+	// FallingRock 시전 거리, cm
+	UPROPERTY(EditDefaultsOnly, Category="Boss|Distance", meta=(ClampMin="1"))
+	float FallingRockRange = 3100.f;
 	// 플레이어 추적 시작 거리, cm
 	UPROPERTY(EditDefaultsOnly, Category="Boss|Distance", meta=(ClampMin="1"))
 	float ChaseStartDistance = 3000.f;
@@ -63,22 +82,67 @@ protected:
 	// Cast 시작부터 발사까지의 지연, 초
 	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack", meta=(ClampMin="0.0"))
 	float MagicReleaseDelay = 0.2f;
+	// FallingRock 모션 시작부터 발사까지 지연, 초
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock", meta=(ClampMin="0.0"))
+	float FallingRockReleaseDelay = 0.8f;
 	// 발사 기준 손 본 또는 소켓
 	UPROPERTY(EditDefaultsOnly, Category="Boss|MagicAttack")
 	FName MagicSpawnSocket = TEXT("hand_l");
+	// 낙석 발사 기준 손 본 또는 소켓
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock")
+	FName FallingRockSpawnSocket = TEXT("hand_l");
+	// 낙석 위험 지점에 지속 표시할 Sevarog 타기팅 이펙트
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock")
+	TObjectPtr<class UParticleSystem> FallingRockWarningEffect;
+	// 낙석 패턴 시작부터 경고 표시까지 지연, 초
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock", meta=(ClampMin="0.0"))
+	float FallingRockWarningDelay = 0.2f;
+	// 경고 표시 유지 시간, 초
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock", meta=(ClampMin="0.1"))
+	float FallingRockWarningDuration = 1.8f;
+	// 경고 이펙트 월드 크기 배율
+	UPROPERTY(EditDefaultsOnly, Category="Boss|FallingRock", meta=(ClampMin="0.1"))
+	float FallingRockWarningScale = 2.f;
+	// BP Class Defaults에서 숫자 0 체력·페이즈 순환 활성화 여부
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Boss|Debug")
+	bool bEnablePhaseDebugInput = true;
 private:
+	// 다음 숫자 0 입력에 적용할 페이즈 순번, 시작 상태 Phase1 다음인 Phase2부터 적용
+	int32 DebugPhaseIndex = 1;
 	// 시전 중 고정된 목표 좌표
 	FVector MagicTarget = FVector::ZeroVector;
 	// 현재 Cast 진행 여부
 	bool bMagicAttackRunning = false;
 	// 이번 시전 투사체 생성 여부
 	bool bMagicAttackLaunched = false;
+	// 현재 FallingRock 시전 진행 여부
+	bool bFallingRockRunning = false;
+	// FallingRock 시전 중 고정된 목표 좌표
+	FVector FallingRockTarget = FVector::ZeroVector;
 	// 발사 예약 타이머
 	FTimerHandle MagicReleaseTimer;
 	// Idle 복귀 타이머
 	FTimerHandle MagicFinishTimer;
+	// FallingRock 발사 예약 타이머
+	FTimerHandle FallingRockReleaseTimer;
+	// FallingRock Idle 복귀 타이머
+	FTimerHandle FallingRockFinishTimer;
+	// FallingRock 위험 지점 경고 생성 타이머
+	FTimerHandle FallingRockWarningTimer;
+	// FallingRock 위험 지점 경고 제거 타이머
+	FTimerHandle FallingRockWarningClearTimer;
+	// 현재 표시 중인 FallingRock 위험 지점 ParticleSystem 컴포넌트
+	TObjectPtr<class UParticleSystemComponent> FallingRockWarningComponent;
 	// 손 위치에서 목표로 투사체 생성
 	void ReleaseMagicAttack();
 	// Cast 종료 후 Idle 반복 재생 복귀
 	void FinishMagicAttack();
+	// 보스 손 위치에서 낙석 액터 생성
+	void ReleaseFallingRock();
+	// 시전 시 저장한 바닥 목표에 위험 지점 경고 생성
+	void ShowFallingRockWarning();
+	// 현재 위험 지점 경고 비활성화·제거
+	void ClearFallingRockWarning();
+	// Ultimate Swing 종료 후 Idle 반복 재생 복귀
+	void FinishFallingRock();
 };

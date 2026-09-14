@@ -12,6 +12,7 @@ void UBossStatComponent::BeginPlay()
 	Super::BeginPlay();
 	CurrentHealth = MaxHealth;
 	bIsDead = false;
+	CurrentPhase = EBossPhase::Phase1;
 }
 
 // 무적·사망 상태를 제외하고 피해량만큼 체력 차감
@@ -24,12 +25,32 @@ float UBossStatComponent::ApplyDamage(float DamageAmount)
 	if (AppliedDamage <= 0.f) return 0.f;
 
 	OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
+	EvaluatePhase();
 	if (CurrentHealth <= 0.f)
 	{
 		bIsDead = true;
 		OnBossDied.Broadcast();
 	}
 	return AppliedDamage;
+}
+
+// 디버그 체력 적용 후 사망 상태·체력 이벤트·페이즈 재평가
+void UBossStatComponent::SetHealthForDebug(float NewHealth)
+{
+	CurrentHealth = FMath::Clamp(NewHealth, 0.f, MaxHealth);
+	bIsDead = CurrentHealth <= 0.f;
+	OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
+	EvaluatePhase();
+}
+
+// 60%·30% 체력 구간 기준 페이즈 변경
+void UBossStatComponent::EvaluatePhase()
+{
+	const float HealthPercent = GetHealthPercent();
+	const EBossPhase NewPhase = HealthPercent <= Phase3HealthThreshold ? EBossPhase::Phase3 : HealthPercent <= Phase2HealthThreshold ? EBossPhase::Phase2 : EBossPhase::Phase1;
+	if (CurrentPhase == NewPhase) return;
+	CurrentPhase = NewPhase;
+	OnPhaseChanged.Broadcast(CurrentPhase);
 }
 
 // 최대 체력 기준 현재 체력 비율 계산

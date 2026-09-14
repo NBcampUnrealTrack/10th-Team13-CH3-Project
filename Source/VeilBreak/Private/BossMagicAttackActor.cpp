@@ -6,7 +6,7 @@
 #include "NiagaraFunctionLibrary.h"
 #include "UObject/ConstructorHelpers.h"
 
-// 이동용 루트·구형 피격 콜리전·Fire 이펙트 생성
+// 이동용 루트·구형 피격 콜리전·Dark 반복 이펙트 생성
 ABossMagicAttackActor::ABossMagicAttackActor()
 {
     PrimaryActorTick.bCanEverTick = true;
@@ -23,10 +23,10 @@ ABossMagicAttackActor::ABossMagicAttackActor()
     SceneRoot->SetupAttachment(HitCollision);
     FireEffect = CreateDefaultSubobject<UNiagaraComponent>(TEXT("FireEffect"));
     FireEffect->SetupAttachment(SceneRoot);
-    // SlashTrail 패키지의 Fire 반복 시스템
-    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> Fire(TEXT("/Game/SlashTrail_SoftTofu/Niagara/Fire/NS_SlashTrail_Fire_Loop.NS_SlashTrail_Fire_Loop"));
-    // 도착·피격 지점의 AuraFX Fire 시스템
-    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> Hit(TEXT("/Game/SlashTrail_SoftTofu/Niagara/Fire/NS_AuraFX_Fire.NS_AuraFX_Fire"));
+    // 비행 외형용 Dark 반복 시스템
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> Fire(TEXT("/Game/SlashTrail_SoftTofu/Niagara/Dark/NS_SlashTrail_Dark_Loop.NS_SlashTrail_Dark_Loop"));
+    // 도착 지점의 AuraFX Mystic 시스템
+    static ConstructorHelpers::FObjectFinder<UNiagaraSystem> Hit(TEXT("/Game/SlashTrail_SoftTofu/Niagara/Mystic/NS_AuraFX_Mystic.NS_AuraFX_Mystic"));
     if (Fire.Succeeded()) FireEffect->SetAsset(Fire.Object);
     if (Hit.Succeeded()) ArrivalEffect = Hit.Object;
     InitialLifeSpan = 30.f;
@@ -38,6 +38,8 @@ void ABossMagicAttackActor::LaunchAt(const FVector& InTarget)
     TargetLocation = InTarget;
     bLaunched = true;
     SetActorRotation((TargetLocation - GetActorLocation()).Rotation());
+    // 발사 시점부터 Dark 반복 이펙트 재생
+    FireEffect->Activate(true);
     SetLifeSpan(FVector::Distance(GetActorLocation(), TargetLocation) / FMath::Max(Speed, 1.f) + 2.f);
 }
 
