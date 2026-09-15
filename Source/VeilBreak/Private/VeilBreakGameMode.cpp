@@ -8,6 +8,7 @@
 #include "PlayerHealthComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
 
 AVeilBreakGameMode::AVeilBreakGameMode()
 {
@@ -69,7 +70,16 @@ void AVeilBreakGameMode::RestartPlayer(AController* NewPlayer)
 	);
 
 	UE_LOG(LogTemp, Log, TEXT("플레이어 사망 이벤트 연결 완료"));
+	// 생성된 플레이어의 컨트롤러로 HUD 표시 요청
+	APlayerController* PlayerController =
+	Cast<APlayerController>(NewPlayer);
+
+	if (IsValid(PlayerController) && PlayerController->IsLocalController())
+	{
+		OnPlayerReadyForHUD(PlayerController);
+	}
 }
+
 
 void AVeilBreakGameMode::PrepareBattle()
 {

@@ -43,6 +43,10 @@ public:
 	void RestartBattle();
 
 protected:
+	// 플레이어 생성 후 HUD 표시를 BP에 요청
+	UFUNCTION(BlueprintImplementableEvent, Category = "Game Loop|UI")
+	void OnPlayerReadyForHUD(APlayerController* PlayerController);
+
 	// 승리와 패배의 공통 종료 처리
 	void EndBattle(EVeilBreakBattleResult Result);
 
