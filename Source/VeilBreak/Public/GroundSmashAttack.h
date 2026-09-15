@@ -38,7 +38,7 @@ protected:
 
     UPROPERTY(EditAnywhere, Category = "Wave")
     float WaveWidth = 80.0f;
-    // 파장 높이. 발이 이 높이보다 올라가면 회피
+    // 파장 높이
     UPROPERTY(EditAnywhere, Category = "Wave")
     float WaveHeight = 40.0f;
 

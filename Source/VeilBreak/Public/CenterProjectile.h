@@ -32,7 +32,7 @@ protected:
 	TSubclassOf<class ACenterMagicProjectile> ProjectileClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
-	int ProjectileCount = 4;//발사 개수
+	int ProjectileCount = 8;//발사 개수
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
 	float FireInterval = 1.0f;
@@ -49,7 +49,31 @@ protected:
 	virtual void EndPlay(
 		const EEndPlayReason::Type EndPlayReason
 	) override;
+	void PlayFireAnimation();
+	void RestoreAnimation();
 
+	FTimerHandle AnimationTimer;
 
+	UPROPERTY()
+	TObjectPtr<class USkeletalMeshComponent> BossMesh;
+
+	UPROPERTY()
+	TObjectPtr<class UAnimationAsset> PreviousAnimation;
+
+	bool AnimationPlaying = false;
+	bool PreviousLooping = false;
+	bool PreviousPlaying = false;
+
+	float PreviousPlayRate = 1.0f;
+	float PreviousTime = 0.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<class UAnimSequence> FireMotion;//발사애니
+
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	TObjectPtr<class USoundBase> FireSound;//발사할때마다
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Sound")
+	TObjectPtr<class USoundBase> StartVoice;//대사 한번
 };
 

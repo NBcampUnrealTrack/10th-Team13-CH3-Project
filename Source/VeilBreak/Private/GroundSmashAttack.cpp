@@ -113,7 +113,6 @@ void AGroundSmashAttack::ActivateAttack()
 
 
 }
-//--------------------搾紫たたたたたたたたたたたし 胡源昔走 乞牽畏製
 void AGroundSmashAttack::Tick(float DeltaTime)//督舌聖 繕榎梢 溌企
 {
     Super::Tick(DeltaTime);
@@ -208,7 +207,7 @@ void AGroundSmashAttack::Tick(float DeltaTime)//督舌聖 繕榎梢 溌企
 
     const float EndRadius = FMath::Max(MaxRadius, 0.0f);
 
-    //戚腰拭 潅嬢劾 暗軒 = 段雁 紗亀 ／ 戚腰 覗傾績税 獣娃 虞壱敗
+    //戚腰拭 潅嬢劾 暗軒 = 段雁 紗亀 * 戚腰 覗傾績税 獣娃 虞壱敗
     const float PreviousRadius = CurrentRadius;
 
     CurrentRadius += FMath::Max(WaveSpeed, 1.0f) * DeltaTime;

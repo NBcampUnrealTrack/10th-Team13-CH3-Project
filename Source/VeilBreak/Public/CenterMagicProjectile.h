@@ -46,6 +46,14 @@ protected:
     UPROPERTY(EditAnywhere, Category = "Attack")
     float Damage = 40.0f;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Impact")
+    TObjectPtr<class UNiagaraSystem> ImpactEffect;//충돌 이펙트
+
+    UPROPERTY(EditDefaultsOnly, Category = "Impact") 
+    TObjectPtr<class USoundBase> ImpactSound;//충돌 사운드
+
+
+
 private:
     FVector MoveDirection = FVector::ZeroVector;
 
@@ -53,4 +61,7 @@ private:
 
     bool IsTracking = false;
     bool HasTracked = false;
+
+    void Explode();
+
 };
