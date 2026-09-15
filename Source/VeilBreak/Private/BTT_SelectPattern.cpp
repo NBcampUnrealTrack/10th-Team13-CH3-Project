@@ -19,8 +19,13 @@ EBTNodeResult::Type UBTT_SelectPattern::ExecuteTask(UBehaviorTreeComponent& Owne
 	UBlackboardComponent* Blackboard = OwnerComp.GetBlackboardComponent();
 	if (!Stat || !Blackboard) return EBTNodeResult::Failed;
 
+	AActor* TargetActor = Cast<AActor>(Blackboard->GetValueAsObject(TEXT("TargetActor")));
 	// 모든 페이즈의 기본 패턴 후보
-	TArray<EBossPattern> Candidates = { EBossPattern::MagicAttack, EBossPattern::FallingRock, EBossPattern::Berserk };
+	TArray<EBossPattern> Candidates = { EBossPattern::MagicAttack, EBossPattern::FallingRock };
+	// 20초 무피격과 120초 쿨타임 조건을 만족할 때만 발악 후보 추가
+	if (Boss->CanStartBerserk(TargetActor)) Candidates.Add(EBossPattern::Berserk);
+	// Phase1에서만 추적 소용돌이 후보 추가
+	if (Boss->CanStartVortex(TargetActor)) Candidates.Add(EBossPattern::Vortex);
 	// Phase2 전용 블랙홀 후보 추가
 	if (Stat->GetCurrentPhase() == EBossPhase::Phase2) Candidates.Add(EBossPattern::BlackHole);
 	// 후보 중 하나를 선택해 BT Selector 분기에 전달
