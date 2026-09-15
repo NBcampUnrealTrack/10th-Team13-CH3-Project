@@ -5,6 +5,9 @@
 #include "GameFramework/Character.h"
 #include "Components/SphereComponent.h"
 #include "PlayerHealthComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
 
 ACenterMagicProjectile::ACenterMagicProjectile()
 {
@@ -91,11 +94,11 @@ void ACenterMagicProjectile::Tick(float DeltaTime)
     SetActorLocation(NextLocation, true, &Hit);
 
     // 이동 도중 벽이나 바닥에 막히면 제거
-    if (Hit.bBlockingHit)
-    {
-        Destroy();
-        return;
-    }
+        if (Hit.bBlockingHit)
+        {
+            Explode();
+            return;
+        }
 }
 void ACenterMagicProjectile::OnProjectileOverlap(
     UPrimitiveComponent* OverlappedComponent,
@@ -129,6 +132,30 @@ void ACenterMagicProjectile::OnProjectileOverlap(
     Health->ApplyDamage(Damage);
 
     UE_LOG(LogTemp, Log, TEXT("Center Projectile Hit: %.1f"), Damage);
+
+    Explode();
+}
+void ACenterMagicProjectile::Explode()
+{
+    const FVector Location = GetActorLocation();
+
+    if (ImpactEffect)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+            this,
+            ImpactEffect,
+            Location
+        );
+    }
+
+    if (ImpactSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(
+            this,
+            ImpactSound,
+            Location
+        );
+    }
 
     Destroy();
 }

@@ -2,23 +2,27 @@
 
 UPlayerStaminaComponent::UPlayerStaminaComponent()
 {
-	// 스태미나 소모 및 회복이 필요할 때만 Tick을 사용
+	// 지속 소모와 자동 회복을 처리하기 위해 Tick 활성화
 	PrimaryComponentTick.bCanEverTick = true;
-	PrimaryComponentTick.bStartWithTickEnabled = false;
 }
 
 void UPlayerStaminaComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 최대 스태미나가 음수가 되지 않도록 보정
+	MaxStamina = FMath::Max(MaxStamina, 0.0f);
+
 	// 게임 시작 시 스태미나를 최대치로 설정
 	CurrentStamina = MaxStamina;
 
-	// 초기 스태미나 값을 UI 등에 전달
-	OnStaminaChanged.Broadcast(
-		CurrentStamina,
-		MaxStamina
-	);
+	// 게임 시작 시 소모 상태 초기화
+	bIsConsumingSprintStamina = false;
+	bInfiniteStamina = false;
+	TimeSinceLastStaminaUse = RecoveryDelay;
+
+	// 초기 스태미나 정보를 UI에 전달
+	OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
 }
 
 void UPlayerStaminaComponent::TickComponent(
@@ -33,144 +37,173 @@ void UPlayerStaminaComponent::TickComponent(
 		ThisTickFunction
 	);
 
+	if (bInfiniteStamina)
+	{
+		// 궁극기 중에는 최대 스태미나를 유지
+		return;
+	}
+
 	if (bIsConsumingSprintStamina)
 	{
-		// 달리기 중이면 매 프레임 스태미나를 소모
+		// 달리기 중에는 매 프레임 스태미나 소모
 		ConsumeSprintStamina(DeltaTime);
 		return;
 	}
 
-	// 스태미나를 사용하지 않는 동안 회복 처리
-	RecoverStamina(DeltaTime);
+	// 스태미나를 사용하지 않는 동안 회복 대기시간 누적
+	TimeSinceLastStaminaUse += DeltaTime;
+
+	if (TimeSinceLastStaminaUse >= RecoveryDelay)
+	{
+		// 회복 대기시간이 끝나면 자동 회복
+		RecoverStamina(DeltaTime);
+	}
 }
 
 bool UPlayerStaminaComponent::HasEnoughStamina(
 	float Amount
 ) const
 {
-	// 잘못된 소모량이 들어오지 않았는지 함께 확인
-	return Amount > 0.0f && CurrentStamina >= Amount;
+	if (bInfiniteStamina)
+	{
+		// 궁극기 중에는 항상 스태미나 사용 가능
+		return true;
+	}
+
+	// 요청량이 유효하고 현재 스태미나가 충분한지 반환
+	return Amount >= 0.0f && CurrentStamina >= Amount;
 }
 
 bool UPlayerStaminaComponent::TryConsumeStamina(
 	float Amount
 )
 {
-	if (!HasEnoughStamina(Amount))
+	if (Amount < 0.0f)
 	{
-		// 스태미나가 부족하면 소모하지 않음
+		// 음수 소모 요청은 허용하지 않음
 		return false;
 	}
 
-	// 대시처럼 한 번에 사용하는 스태미나를 차감
+	if (bInfiniteStamina)
+	{
+		// 궁극기 중에는 성공만 반환하고 실제 수치는 소모하지 않음
+		return true;
+	}
+
+	if (!HasEnoughStamina(Amount))
+	{
+		// 현재 스태미나가 부족하면 사용 실패
+		return false;
+	}
+
+	// 지정한 양만큼 현재 스태미나 감소
 	SetCurrentStamina(CurrentStamina - Amount);
 
-	// 스태미나를 사용했으므로 회복 대기시간을 초기화
+	// 마지막 사용 시간을 초기화해 즉시 회복되지 않도록 처리
 	TimeSinceLastStaminaUse = 0.0f;
-
-	// 회복 처리를 위해 Tick을 활성화
-	SetComponentTickEnabled(true);
 
 	return true;
 }
 
 bool UPlayerStaminaComponent::StartSprintConsumption()
 {
-	if (CurrentStamina <= 0.0f)
+	if (!bInfiniteStamina && CurrentStamina <= 0.0f)
 	{
-		// 스태미나가 없으면 달리기를 시작할 수 없음
+		// 스태미나가 없다면 달리기 시작 실패
 		return false;
 	}
 
-	// 달리기 중 지속 소모 상태로 변경
+	// 달리기 지속 소모 상태 시작
 	bIsConsumingSprintStamina = true;
-
-	// 지속 소모 처리를 위해 Tick을 활성화
-	SetComponentTickEnabled(true);
-
 	return true;
 }
 
 void UPlayerStaminaComponent::StopSprintConsumption()
 {
-	// 달리기 스태미나 소모를 중지
+	// 달리기 지속 소모 상태 종료
 	bIsConsumingSprintStamina = false;
+}
 
-	// 마지막 소모를 기준으로 회복 대기시간을 적용
-	TimeSinceLastStaminaUse = 0.0f;
+void UPlayerStaminaComponent::SetInfiniteStamina(
+	bool bEnableInfiniteStamina
+)
+{
+	// 궁극기 상태에 따라 무한 스태미나 상태 변경
+	bInfiniteStamina = bEnableInfiniteStamina;
 
-	// 스태미나 회복을 계속 처리하기 위해 Tick 유지
-	if (CurrentStamina < MaxStamina)
+	if (bInfiniteStamina)
 	{
-		SetComponentTickEnabled(true);
+		// 궁극기 시작 시 스태미나를 즉시 최대치로 회복
+		SetCurrentStamina(MaxStamina);
+
+		// 궁극기 중 지속 소모가 실행되지 않도록 중단
+		bIsConsumingSprintStamina = false;
 	}
+
+	// 궁극기 종료 후 회복 지연 시간을 정상적으로 다시 계산
+	TimeSinceLastStaminaUse = 0.0f;
 }
 
 float UPlayerStaminaComponent::GetCurrentStamina() const
 {
-	// 외부에서 현재 스태미나를 읽을 수 있도록 반환
+	// UI에서 사용할 현재 스태미나 반환
 	return CurrentStamina;
 }
 
 float UPlayerStaminaComponent::GetMaxStamina() const
 {
-	// 외부에서 최대 스태미나를 읽을 수 있도록 반환
+	// UI에서 사용할 최대 스태미나 반환
 	return MaxStamina;
+}
+
+bool UPlayerStaminaComponent::IsInfiniteStamina() const
+{
+	// 현재 무한 스태미나 상태 반환
+	return bInfiniteStamina;
 }
 
 void UPlayerStaminaComponent::SetCurrentStamina(
 	float NewStamina
 )
 {
-	// 스태미나가 0 미만 또는 최대치 초과가 되지 않게 제한
-	const float ClampedStamina = FMath::Clamp(
+	// 이전 스태미나 수치 저장
+	const float PreviousStamina = CurrentStamina;
+
+	// 현재 스태미나를 0과 최대치 사이로 제한
+	CurrentStamina = FMath::Clamp(
 		NewStamina,
 		0.0f,
 		MaxStamina
 	);
 
-	if (FMath::IsNearlyEqual(
-		CurrentStamina,
-		ClampedStamina
-	))
+	if (!FMath::IsNearlyEqual(PreviousStamina, CurrentStamina))
 	{
-		// 값이 실제로 변하지 않았다면 이벤트를 보내지 않음
-		return;
+		// 실제 값이 변경됐을 때만 UI 이벤트 전달
+		OnStaminaChanged.Broadcast(CurrentStamina, MaxStamina);
 	}
 
-	// 제한된 값을 현재 스태미나에 적용
-	CurrentStamina = ClampedStamina;
-
-	// 변경된 수치를 UI 등의 외부 시스템에 전달
-	OnStaminaChanged.Broadcast(
-		CurrentStamina,
-		MaxStamina
-	);
+	if (PreviousStamina > 0.0f && CurrentStamina <= 0.0f)
+	{
+		// 스태미나가 처음 0이 된 순간 소진 이벤트 전달
+		OnStaminaDepleted.Broadcast();
+	}
 }
 
 void UPlayerStaminaComponent::ConsumeSprintStamina(
 	float DeltaTime
 )
 {
-	// 프레임 시간에 맞춰 달리기 스태미나 소모량 계산
-	const float StaminaCost =
-		SprintCostPerSecond * DeltaTime;
+	// 프레임 시간에 비례해 달리기 스태미나 소모
+	const float StaminaCost = SprintCostPerSecond * DeltaTime;
 
 	SetCurrentStamina(CurrentStamina - StaminaCost);
-
-	// 소모 중에는 회복 대기시간을 계속 초기화
 	TimeSinceLastStaminaUse = 0.0f;
 
-	if (CurrentStamina > 0.0f)
+	if (CurrentStamina <= 0.0f)
 	{
-		return;
+		// 스태미나가 소진되면 지속 소모 종료
+		bIsConsumingSprintStamina = false;
 	}
-
-	// 스태미나가 모두 소진되면 지속 소모를 중단
-	bIsConsumingSprintStamina = false;
-
-	// 캐릭터가 강제로 달리기를 중단하도록 이벤트 전달
-	OnStaminaDepleted.Broadcast();
 }
 
 void UPlayerStaminaComponent::RecoverStamina(
@@ -179,29 +212,11 @@ void UPlayerStaminaComponent::RecoverStamina(
 {
 	if (CurrentStamina >= MaxStamina)
 	{
-		// 최대치에 도달하면 더 이상 Tick을 사용할 필요가 없음
-		SetComponentTickEnabled(false);
+		// 이미 최대치라면 추가 회복하지 않음
 		return;
 	}
 
-	// 마지막 사용 이후 지난 시간을 누적
-	TimeSinceLastStaminaUse += DeltaTime;
-
-	if (TimeSinceLastStaminaUse < RecoveryDelay)
-	{
-		// 회복 대기시간 전에는 스태미나를 회복하지 않음
-		return;
-	}
-
-	// 프레임 시간에 맞춰 스태미나 회복량 계산
-	const float RecoveryAmount =
-		RecoveryPerSecond * DeltaTime;
-
+	// 프레임 시간에 비례해 스태미나 자동 회복
+	const float RecoveryAmount = RecoveryPerSecond * DeltaTime;
 	SetCurrentStamina(CurrentStamina + RecoveryAmount);
-
-	if (CurrentStamina >= MaxStamina)
-	{
-		// 완전히 회복되면 불필요한 Tick을 종료
-		SetComponentTickEnabled(false);
-	}
 }

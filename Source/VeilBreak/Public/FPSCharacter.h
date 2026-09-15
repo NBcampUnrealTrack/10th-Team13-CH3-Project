@@ -53,6 +53,13 @@ private:
 	// R 입력으로 한 발씩 재장전 시작
 	void StartReload();
 
+	// E 입력으로 8초 궁극기 사용 시도
+	void StartUltimate();
+
+	// 궁극기 상태에 따라 이동, 공격 및 스태미나 효과 적용
+	UFUNCTION()
+	void HandleUltimateStateChanged(bool bIsActive);
+
 	// 스태미나가 충분하면 달리기 시작
 	void StartSprint();
 
@@ -171,6 +178,9 @@ private:
 
 	// 현재 대시를 사용할 수 있는지 저장
 	bool bCanDash = true;
+
+	// 현재 궁극기의 상시 달리기 효과가 적용됐는지 저장
+	bool bIsUltimateActive = false;
 
 private:
 	// 카메라 설정

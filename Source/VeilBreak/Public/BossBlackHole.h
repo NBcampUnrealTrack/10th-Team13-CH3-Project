@@ -6,6 +6,9 @@
 
 class USphereComponent;
 class ACharacter;
+class UStaticMeshComponent;
+class UMaterialInterface;
+class UAudioComponent;
 
 /**
  * 보스 패턴 - 블랙홀
@@ -34,6 +37,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "BlackHole")
 	void DeactivateBlackHole();
 
+	/**
+	 * BT Task에서 스폰 직후 호출: 이 블랙홀이 실제로 몇 초 지속될지 알려줌.
+	 * BT의 Active Duration이랑 이 값이 어긋나면 안 되니까, BT가 값을 정하고 여기로 넘겨받아 쓰는 구조.
+	 * (예전엔 이 클래스 자체의 기본값 Duration이랑 BT의 Active Duration이 따로 놀아서 항상 더 짧은 쪽이 이겨버리는 버그가 있었음)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "BlackHole")
+	void SetDuration(float NewDuration) { Duration = NewDuration; }
+
 protected:
 	UFUNCTION()
 	void OnPullRadiusBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
@@ -54,12 +65,54 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole")
 	TObjectPtr<USphereComponent> PullRadiusComponent;
 
-	// 나이아가라 이펙트는 나중에 연출 붙일 때 다시 추가.
-	// 지금은 Tick의 DrawDebugSphere로 범위를 대신 확인함.
+	/** 눈에 보이는 구체. 판정 범위(PullRadiusComponent)와는 별개의 순수 시각 요소 */
+	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
+	TObjectPtr<UStaticMeshComponent> VisualSphere;
+
+	/** 구체에 입힐 머티리얼. 나중에 아티스트가 만든 블랙홀 전용 머티리얼로 교체 가능. 비워두면 엔진 기본 회색 구체로 보임 */
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual")
+	TObjectPtr<UMaterialInterface> BlackHoleMaterial;
+
+	/**
+	 * 손 위 구체를 중심으로 실제로 커지면서 판정 범위 끝까지 퍼져나가는 파동 원반.
+	 * 머티리얼 안의 패턴이 아니라, 이 컴포넌트의 실제 스케일 값을 Tick에서 계속 키웠다 리셋하는 방식.
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
+	TObjectPtr<UStaticMeshComponent> ShockwaveDisc;
+
+	/** 파동 원반에 입힐 머티리얼. VisualSphere에 쓴 왜곡 머티리얼을 그대로 넣어도 됨 */
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual")
+	TObjectPtr<UMaterialInterface> ShockwaveMaterial;
+
+	/** 파동이 한 번 다 퍼지는(0 → PullRadius) 데 걸리는 시간(초). 다 퍼지면 즉시 리셋하고 다시 시작 */
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "0.1"))
+	float ShockwaveInterval = 1.2f;
+
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "0.0"))
+	float ShockwaveGap = 3.f;
+
+	/** 지금 파동이 시작된 후 몇 초 지났는지 (내부 계산용) */
+	float ShockwaveElapsed = 0.f;
+
+	/**
+	 * 발동 중 계속 재생되는 루프 사운드 (웅웅거리는 흡입음 등).
+	 * BP_BossBlackHole의 Components 패널에서 이 컴포넌트를 선택하고 Sound 슬롯에 루프 사운드를 직접 지정하면 됨
+	 * (Visual Sphere에 Static Mesh 넣었던 것과 같은 방식).
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
+	TObjectPtr<UAudioComponent> LoopingSound;
+
+
+	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
+	TObjectPtr<UStaticMeshComponent> SkyboxDome;
+
+
+	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "1.0"))
+	float SkyboxDomeRadiusMultiplier = 1.3f;
 
 	/** 당김 판정 반경 (uu 단위, 언리얼 기본 캐릭터 캡슐 반경이 약 34uu) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
-	float PullRadius = 2000.f;
+	float PullRadius = 3000.f;
 
 	/** 끌려가는 속도. 걷기 400 < PullSpeed < 뛰기 650 사이로 맞춘 기본값 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
@@ -67,7 +120,7 @@ protected:
 
 	/** 블랙홀 지속 시간 (초) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
-	float Duration = 3.f;
+	float Duration = 20.f;
 
 	bool bIsActive = false;
 

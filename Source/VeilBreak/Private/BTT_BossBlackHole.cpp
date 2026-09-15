@@ -5,6 +5,10 @@
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequence.h"
+#include "Sound/SoundBase.h"
+#include "Components/AudioComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 UBTT_BossBlackHole::UBTT_BossBlackHole()
 {
@@ -34,11 +38,14 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 		return EBTNodeResult::Failed;
 	}
 
-	// 소켓이 있으면 소켓 위치, 없으면 캡슐 상단 + 여유 높이로 대체
+	// 소켓이 있으면 소켓의 로컬 좌표계 기준으로 오프셋을 적용한 위치, 없으면 캡슐 상단 + 여유 높이로 대체
 	FVector SpawnLocation;
 	if (Boss->GetMesh() && Boss->GetMesh()->DoesSocketExist(SpawnSocketName))
 	{
-		SpawnLocation = Boss->GetMesh()->GetSocketLocation(SpawnSocketName);
+		// GetSocketTransform으로 소켓의 위치+회전을 같이 가져와서,
+		// SpawnOffset을 "소켓이 보는 방향 기준"으로 변환함 (손이 어떻게 돌아가 있어도 항상 같은 방향으로 띄워짐)
+		const FTransform SocketTransform = Boss->GetMesh()->GetSocketTransform(SpawnSocketName);
+		SpawnLocation = SocketTransform.TransformPosition(SpawnOffset);
 	}
 	else
 	{
@@ -63,8 +70,41 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 		Spawned->AttachToComponent(Boss->GetMesh(), FAttachmentTransformRules::KeepWorldTransform, SpawnSocketName);
 	}
 
+	// BT에서 설정한 지속시간을 액터한테 그대로 알려줌.
+	// 이걸 안 하면 액터 자체 기본값(Duration)이랑 여기 ActiveDuration이 어긋날 때
+	// 항상 더 짧은 쪽이 먼저 꺼버려서, BT에서 시간을 늘려도 반영 안 되는 것처럼 보임
+	Spawned->SetDuration(ActiveDuration);
+
 	Spawned->ActivateBlackHole();
 	Memory->SpawnedBlackHole = Spawned;
+	Memory->Boss = Boss;
+
+	// 캐스트 애니메이션 재생 (BossCharacterBase의 마법공격이랑 같은 방식: PlayAnimation으로 직접 재생)
+	if (CastAnimation && Boss->GetMesh())
+	{
+		Boss->GetMesh()->PlayAnimation(CastAnimation, false);
+	}
+
+	// 발동 사운드 재생 (블랙홀 스폰 위치에서 3D로 재생, 한 번만)
+	if (ActivationSound)
+	{
+		UGameplayStatics::PlaySoundAtLocation(Boss, ActivationSound, SpawnLocation, ActivationSoundVolume);
+	}
+
+	// 반복 사운드는 손 소켓에 붙여서 계속 따라다니게 재생 (Duration 끝나면 CleanUpBlackHole에서 정지)
+	if (LoopingSound && Boss->GetMesh())
+	{
+		UAudioComponent* LoopComp = UGameplayStatics::SpawnSoundAttached(
+			LoopingSound,
+			Boss->GetMesh(),
+			SpawnSocketName,
+			FVector::ZeroVector,
+			EAttachLocation::SnapToTargetIncludingScale,
+			/*bStopWhenAttachedToDestroyed=*/ false,
+			LoopingSoundVolume
+		);
+		Memory->LoopingSoundComponent = LoopComp;
+	}
 
 	// 아직 안 끝났다는 뜻. BT는 이 상태를 계속 유지하면서 매 프레임 TickTask를 불러줌
 	return EBTNodeResult::InProgress;
@@ -99,4 +139,19 @@ void UBTT_BossBlackHole::CleanUpBlackHole(FBTBlackHoleMemory* Memory)
 		Memory->SpawnedBlackHole->Destroy();
 	}
 	Memory->SpawnedBlackHole = nullptr;
+
+	// 반복 재생 중이던 사운드 정지
+	if (Memory->LoopingSoundComponent.IsValid())
+	{
+		Memory->LoopingSoundComponent->Stop();
+		Memory->LoopingSoundComponent->DestroyComponent();
+	}
+	Memory->LoopingSoundComponent = nullptr;
+
+	// 캐스트 애니메이션이 끝난 자세로 멈춰있지 않도록 Idle로 복귀
+	if (IdleAnimationAfter && Memory->Boss.IsValid() && Memory->Boss->GetMesh())
+	{
+		Memory->Boss->GetMesh()->PlayAnimation(IdleAnimationAfter, true);
+	}
+	Memory->Boss = nullptr;
 }

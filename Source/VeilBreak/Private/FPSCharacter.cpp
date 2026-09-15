@@ -120,6 +120,15 @@ void AFPSCharacter::BeginPlay()
 		);
 	}
 
+	if (PlayerSkillComponent != nullptr)
+	{
+		// 궁극기 시작과 종료 시 모든 강화 효과를 함께 적용
+		PlayerSkillComponent->OnUltimateStateChanged.AddUniqueDynamic(
+			this,
+			&AFPSCharacter::HandleUltimateStateChanged
+		);
+	}
+
 	// 현재 캐릭터를 조종하는 플레이어 컨트롤러 확인
 	APlayerController* PlayerController =
 		Cast<APlayerController>(Controller);
@@ -243,6 +252,17 @@ void AFPSCharacter::SetupPlayerInputComponent(
 			ETriggerEvent::Started,
 			this,
 			&AFPSCharacter::StartReload
+		);
+	}
+
+	if (UltimateAction != nullptr)
+	{
+		// E를 누른 순간 8초 궁극기 사용 시도
+		EnhancedInputComponent->BindAction(
+			UltimateAction,
+			ETriggerEvent::Started,
+			this,
+			&AFPSCharacter::StartUltimate
 		);
 	}
 
@@ -445,8 +465,75 @@ void AFPSCharacter::StartReload()
 	PlayerCombatComponent->StartReload();
 }
 
+void AFPSCharacter::StartUltimate()
+{
+	if (
+		PlayerHealthComponent != nullptr &&
+		PlayerHealthComponent->IsDead()
+		)
+	{
+		// 사망한 상태에서는 궁극기 사용 불가
+		return;
+	}
+
+	if (
+		StatusEffectReceiverComponent != nullptr &&
+		StatusEffectReceiverComponent->IsCrowdControlled()
+		)
+	{
+		// 경직이나 넉백 등의 CC 상태에서는 궁극기 사용 불가
+		return;
+	}
+
+	if (PlayerSkillComponent == nullptr)
+	{
+		// 스킬 컴포넌트가 없다면 궁극기 사용 불가
+		return;
+	}
+
+	// 현재는 과녁 스택 조건 없이 8초 궁극기 활성화
+	PlayerSkillComponent->ActivateUltimate();
+}
+
+void AFPSCharacter::HandleUltimateStateChanged(
+	bool bIsActive
+)
+{
+	// 캐릭터가 현재 궁극기 상태인지 저장
+	bIsUltimateActive = bIsActive;
+
+	if (PlayerCombatComponent != nullptr)
+	{
+		// 궁극기 중 공격력 2배와 재장전 시간 절반 적용
+		PlayerCombatComponent->SetUltimateBuffActive(bIsActive);
+	}
+
+	if (PlayerStaminaComponent != nullptr)
+	{
+		// 궁극기 중 스태미나를 최대치로 유지하고 소모 방지
+		PlayerStaminaComponent->SetInfiniteStamina(bIsActive);
+	}
+
+	if (bIsUltimateActive)
+	{
+		// 궁극기 8초 동안 Shift 입력 없이 상시 달리기 속도 적용
+		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+		return;
+	}
+
+	// 궁극기 종료 시 지속 소모를 끄고 기본 걷기 속도로 복구
+	StopSprint();
+}
+
 void AFPSCharacter::StartSprint()
 {
+	if (bIsUltimateActive)
+	{
+		// 궁극기 중에는 스태미나 소모 없이 달리기 속도 유지
+		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+		return;
+	}
+
 	if (PlayerStaminaComponent == nullptr)
 	{
 		// 스태미나 컴포넌트가 없으면 달리기 불가
@@ -471,8 +558,10 @@ void AFPSCharacter::StopSprint()
 		PlayerStaminaComponent->StopSprintConsumption();
 	}
 
-	// 기본 걷기 속도로 복구
-	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	// 궁극기 중에는 Shift를 떼어도 상시 달리기 속도 유지
+	GetCharacterMovement()->MaxWalkSpeed = bIsUltimateActive
+		? SprintSpeed
+		: WalkSpeed;
 }
 
 void AFPSCharacter::StartDash()

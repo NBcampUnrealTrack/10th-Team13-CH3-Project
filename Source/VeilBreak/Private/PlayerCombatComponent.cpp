@@ -28,6 +28,8 @@ void UPlayerCombatComponent::BeginPlay()
 	// 게임 시작 시 전투 상태 초기화
 	bCanFire = true;
 	bIsReloading = false;
+	CurrentDamageMultiplier = 1.0f;
+	CurrentReloadTimeMultiplier = 1.0f;
 
 	// 초기 탄약 정보를 UI에 전달
 	BroadcastAmmoChanged();
@@ -113,7 +115,7 @@ void UPlayerCombatComponent::StartReload()
 		ReloadTimerHandle,
 		this,
 		&UPlayerCombatComponent::HandleReloadRound,
-		ReloadTimePerRound,
+		ReloadTimePerRound * CurrentReloadTimeMultiplier,
 		false
 	);
 }
@@ -188,6 +190,21 @@ bool UPlayerCombatComponent::IsReloading() const
 	return bIsReloading;
 }
 
+void UPlayerCombatComponent::SetUltimateBuffActive(
+	bool bEnableUltimateBuff
+)
+{
+	// 궁극기 상태에 따라 공격력 배율 변경
+	CurrentDamageMultiplier = bEnableUltimateBuff
+		? UltimateDamageMultiplier
+		: 1.0f;
+
+	// 궁극기 상태에 따라 재장전 시간 배율 변경
+	CurrentReloadTimeMultiplier = bEnableUltimateBuff
+		? UltimateReloadTimeMultiplier
+		: 1.0f;
+}
+
 void UPlayerCombatComponent::PerformHitScan()
 {
 	// 전투 컴포넌트를 소유한 플레이어 확인
@@ -226,14 +243,14 @@ void UPlayerCombatComponent::PerformHitScan()
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(GetOwner());
 
-	// 카메라 중앙에서 직선 명중 판정 실행
+	// 보스 담당자가 만든 전용 피격 채널로 직선 명중 판정 실행
 	FHitResult HitResult;
 
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(
 		HitResult,
 		ViewLocation,
 		TraceEnd,
-		ECC_Visibility,
+		ECC_GameTraceChannel1,
 		QueryParams
 	);
 
@@ -277,7 +294,7 @@ void UPlayerCombatComponent::PerformHitScan()
 	// 명중한 액터에 기본 공격력 20의 점 피해 적용
 	UGameplayStatics::ApplyPointDamage(
 		HitActor,
-		BaseDamage,
+		BaseDamage * CurrentDamageMultiplier,
 		ShotDirection,
 		HitResult,
 		PlayerController,
@@ -360,7 +377,7 @@ void UPlayerCombatComponent::HandleReloadRound()
 		ReloadTimerHandle,
 		this,
 		&UPlayerCombatComponent::HandleReloadRound,
-		ReloadTimePerRound,
+		ReloadTimePerRound * CurrentReloadTimeMultiplier,
 		false
 	);
 }

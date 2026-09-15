@@ -58,7 +58,7 @@ protected:
 		BlueprintReadOnly,
 		Category = "Dummy Boss"
 	)
-	EVeilBreakBossPhase CurrentPhase;
+	EBossPhase CurrentPhase;
 
 	UPROPERTY(
 		EditAnywhere,
