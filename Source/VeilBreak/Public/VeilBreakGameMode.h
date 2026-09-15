@@ -15,6 +15,9 @@ public:
 
 	virtual void BeginPlay() override;
 
+	// 플레이어 생성 처리 후 사망 이벤트 연결
+	virtual void RestartPlayer(AController* NewPlayer) override;
+
 	// 전투 준비 및 상태 초기화
 	UFUNCTION(BlueprintCallable, Category = "Game Loop")
 	void PrepareBattle();
@@ -80,4 +83,7 @@ protected:
 		Category = "Game Loop|Integration"
 	)
 	void OnBattleEnded(EVeilBreakBattleResult Result);
+
+	// 보스의 페이즈 변경·사망 이벤트를 GameMode에 연결
+	void BindBossEvents();
 };
