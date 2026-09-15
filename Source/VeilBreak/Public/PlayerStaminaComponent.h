@@ -14,9 +14,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 );
 
 // 스태미나가 완전히 소진됐을 때 전달하는 이벤트
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(
-	FOnStaminaDepleted
-);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnStaminaDepleted);
 
 UCLASS(
 	ClassGroup = (Custom),
@@ -48,6 +46,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Stamina")
 	void StopSprintConsumption();
 
+	// 궁극기 활성 상태에 따라 무한 스태미나 적용
+	UFUNCTION(BlueprintCallable, Category = "Stamina|Ultimate")
+	void SetInfiniteStamina(bool bEnableInfiniteStamina);
+
 	// 현재 스태미나 반환
 	UFUNCTION(BlueprintPure, Category = "Stamina")
 	float GetCurrentStamina() const;
@@ -55,6 +57,10 @@ public:
 	// 최대 스태미나 반환
 	UFUNCTION(BlueprintPure, Category = "Stamina")
 	float GetMaxStamina() const;
+
+	// 현재 무한 스태미나 상태인지 반환
+	UFUNCTION(BlueprintPure, Category = "Stamina|Ultimate")
+	bool IsInfiniteStamina() const;
 
 public:
 	// 스태미나 수치가 변경됐을 때 호출
@@ -93,10 +99,7 @@ private:
 	float MaxStamina = 100.0f;
 
 	// 현재 보유 중인 스태미나
-	UPROPERTY(
-		VisibleInstanceOnly,
-		Category = "Stamina"
-	)
+	UPROPERTY(VisibleInstanceOnly, Category = "Stamina")
 	float CurrentStamina = 100.0f;
 
 	// 달리기 중 1초마다 소모되는 스태미나
@@ -113,6 +116,9 @@ private:
 
 	// 현재 달리기 스태미나를 소모하고 있는지 저장
 	bool bIsConsumingSprintStamina = false;
+
+	// 현재 궁극기로 무한 스태미나가 적용됐는지 저장
+	bool bInfiniteStamina = false;
 
 	// 마지막 스태미나 소모 이후 지난 시간
 	float TimeSinceLastStaminaUse = 0.0f;
