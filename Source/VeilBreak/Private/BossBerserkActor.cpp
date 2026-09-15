@@ -15,7 +15,9 @@ ABossBerserkActor::ABossBerserkActor()
 	HitCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	HitCollision->SetCollisionObjectType(ECC_WorldDynamic);
 	HitCollision->SetCollisionResponseToAllChannels(ECR_Ignore);
+	// 기존 Visibility 사격과 WeaponTrace용 GameTraceChannel1 모두 허용
 	HitCollision->SetCollisionResponseToChannel(ECC_Visibility, ECR_Block);
+	HitCollision->SetCollisionResponseToChannel(ECC_GameTraceChannel1, ECR_Block);
 
 	OrbMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("OrbMesh"));
 	OrbMesh->SetupAttachment(HitCollision);
