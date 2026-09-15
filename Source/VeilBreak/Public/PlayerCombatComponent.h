@@ -70,6 +70,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsReloading() const;
 
+	// 궁극기 활성 상태에 따라 공격력과 재장전 속도 변경
+	UFUNCTION(BlueprintCallable, Category = "Combat|Ultimate")
+	void SetUltimateBuffActive(bool bEnableUltimateBuff);
+
 public:
 	// 현재 탄약 또는 예비 탄약이 변경됐을 때 호출
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
@@ -142,7 +146,24 @@ private:
 
 	// 총알 한 발을 실린더에 넣는 데 필요한 시간
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Reload")
-	float ReloadTimePerRound = 0.35f;
+	float ReloadTimePerRound = 0.69f;
+
+private:
+	// 궁극기 설정
+
+	// 궁극기 중 기본 공격력에 적용되는 배율
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Ultimate")
+	float UltimateDamageMultiplier = 2.0f;
+
+	// 궁극기 중 재장전 시간에 적용되는 배율
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Ultimate")
+	float UltimateReloadTimeMultiplier = 0.5f;
+
+	// 현재 기본 공격력에 적용되는 배율
+	float CurrentDamageMultiplier = 1.0f;
+
+	// 현재 한 발 재장전 시간에 적용되는 배율
+	float CurrentReloadTimeMultiplier = 1.0f;
 
 private:
 	// 반동 설정

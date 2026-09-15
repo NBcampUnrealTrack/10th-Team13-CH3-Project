@@ -28,6 +28,8 @@ void UPlayerCombatComponent::BeginPlay()
 	// 게임 시작 시 전투 상태 초기화
 	bCanFire = true;
 	bIsReloading = false;
+	CurrentDamageMultiplier = 1.0f;
+	CurrentReloadTimeMultiplier = 1.0f;
 
 	// 초기 탄약 정보를 UI에 전달
 	BroadcastAmmoChanged();
@@ -113,7 +115,7 @@ void UPlayerCombatComponent::StartReload()
 		ReloadTimerHandle,
 		this,
 		&UPlayerCombatComponent::HandleReloadRound,
-		ReloadTimePerRound,
+		ReloadTimePerRound * CurrentReloadTimeMultiplier,
 		false
 	);
 }
@@ -186,6 +188,21 @@ bool UPlayerCombatComponent::IsReloading() const
 {
 	// 현재 재장전 상태 반환
 	return bIsReloading;
+}
+
+void UPlayerCombatComponent::SetUltimateBuffActive(
+	bool bEnableUltimateBuff
+)
+{
+	// 궁극기 상태에 따라 공격력 배율 변경
+	CurrentDamageMultiplier = bEnableUltimateBuff
+		? UltimateDamageMultiplier
+		: 1.0f;
+
+	// 궁극기 상태에 따라 재장전 시간 배율 변경
+	CurrentReloadTimeMultiplier = bEnableUltimateBuff
+		? UltimateReloadTimeMultiplier
+		: 1.0f;
 }
 
 void UPlayerCombatComponent::PerformHitScan()
@@ -277,7 +294,7 @@ void UPlayerCombatComponent::PerformHitScan()
 	// 명중한 액터에 기본 공격력 20의 점 피해 적용
 	UGameplayStatics::ApplyPointDamage(
 		HitActor,
-		BaseDamage,
+		BaseDamage * CurrentDamageMultiplier,
 		ShotDirection,
 		HitResult,
 		PlayerController,
@@ -360,7 +377,7 @@ void UPlayerCombatComponent::HandleReloadRound()
 		ReloadTimerHandle,
 		this,
 		&UPlayerCombatComponent::HandleReloadRound,
-		ReloadTimePerRound,
+		ReloadTimePerRound * CurrentReloadTimeMultiplier,
 		false
 	);
 }
