@@ -6,7 +6,12 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "TimerManager.h"
-
+#include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/AnimSingleNodeInstance.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 
 void ACenterProjectile::FireProjectiles() 
 {
@@ -33,7 +38,7 @@ void ACenterProjectile::FireProjectiles()
     // 발사할 때마다 수평 방향 조금씩 회전
     const float RotationOffset = FireCount * RotationPerShot;
 
-    // 수평 → 위 → 아래 순서로 반복
+    // 수평 -> 위 -> 아래 순서로 반복
 
     float Pitch = 0.0f;
 
@@ -45,7 +50,16 @@ void ACenterProjectile::FireProjectiles()
     {
         Pitch = VerticalAngle * 2.0f;
     }
+    PlayFireAnimation();
 
+    if (FireSound)
+    {
+        UGameplayStatics::PlaySoundAtLocation(
+            this,
+            FireSound,
+            Boss->GetActorLocation()
+        );
+    }
     for (int i = 0; i < ProjectileCount; i++)
     {
         // 보스의 수평 방향을 기준으로 회전
@@ -83,8 +97,18 @@ void ACenterProjectile::ActivateAttack()
         return;
     }
     FireCount = 0;
+    
+    //처음에 한번 대사용
+    if (StartVoice && IsValid(GetOwner()))
+    {
+        UGameplayStatics::PlaySoundAtLocation(
+            this,
+            StartVoice,
+            GetOwner()->GetActorLocation()
+        );
+    }
 
-    // 첫 발사는 즉시 실행
+    // 첫 발사
     FireProjectiles();
 
     if (!IsAttacking())
@@ -92,7 +116,7 @@ void ACenterProjectile::ActivateAttack()
         return;
     }
 
-    // 전체 패턴 종료 예약
+    //패턴 종료
     GetWorldTimerManager().SetTimer(
         PatternTimer,
         this,
@@ -114,8 +138,10 @@ void ACenterProjectile::EndPattern()
 {
     GetWorldTimerManager().ClearTimer(FireTimer);
     GetWorldTimerManager().ClearTimer(PatternTimer);
-
+    GetWorldTimerManager().ClearTimer(AnimationTimer);
+    RestoreAnimation();
     FinishAttack();
+
 }
 
 void ACenterProjectile::EndPlay(
@@ -124,8 +150,90 @@ void ACenterProjectile::EndPlay(
 {
     GetWorldTimerManager().ClearTimer(FireTimer);
     GetWorldTimerManager().ClearTimer(PatternTimer);
-
+    GetWorldTimerManager().ClearTimer(AnimationTimer);
+    RestoreAnimation();
     CancelAttack();
 
     Super::EndPlay(EndPlayReason);
+}
+void ACenterProjectile::PlayFireAnimation()
+{
+    ACharacter* Boss = Cast<ACharacter>(GetOwner());
+
+    if (!IsValid(Boss) || !FireMotion)
+    {
+        return;
+    }
+
+    BossMesh = Boss->GetMesh();
+
+    if (!IsValid(BossMesh))
+    {
+        return;
+    }
+
+    UAnimSingleNodeInstance* Current =
+        BossMesh->GetSingleNodeInstance();
+
+    if (!Current)
+    {
+        return;
+    }
+
+    if (!AnimationPlaying)
+    {
+        PreviousAnimation = Current->GetCurrentAsset();
+        PreviousLooping = Current->IsLooping();
+        PreviousPlaying = Current->IsPlaying();
+        PreviousPlayRate = Current->GetPlayRate();
+        PreviousTime = Current->GetCurrentTime();
+    }
+
+    AnimationPlaying = true;
+
+    BossMesh->PlayAnimation(FireMotion, false);
+    BossMesh->SetPlayRate(1.0f);
+
+    GetWorldTimerManager().SetTimer(
+        AnimationTimer,
+        this,
+        &ACenterProjectile::RestoreAnimation,
+        FireMotion->GetPlayLength(),
+        false
+    );
+}
+void ACenterProjectile::RestoreAnimation()
+{
+    if (!AnimationPlaying)
+    {
+        return;
+    }
+
+    AnimationPlaying = false;
+
+    if (!IsValid(BossMesh))
+    {
+        return;
+    }
+
+    UAnimSingleNodeInstance* Current =
+        BossMesh->GetSingleNodeInstance();
+
+    
+    if (!Current || Current->GetCurrentAsset() != FireMotion)
+    {
+        return;
+    }
+
+    BossMesh->PlayAnimation(PreviousAnimation, PreviousLooping);
+    BossMesh->SetPlayRate(PreviousPlayRate);
+    BossMesh->SetPosition(PreviousTime, false);
+
+    UAnimSingleNodeInstance* Restored =
+        BossMesh->GetSingleNodeInstance();
+
+    if (Restored)
+    {
+        Restored->SetPlaying(PreviousPlaying);
+    }
 }

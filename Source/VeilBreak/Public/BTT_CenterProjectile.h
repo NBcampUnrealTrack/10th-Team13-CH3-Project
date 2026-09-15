@@ -42,4 +42,7 @@ private:
     TObjectPtr<ACenterProjectile> ActiveAttack;
 
     void CleanupAttack();//생성한 오브젝트 제거
+
+
+
 };
