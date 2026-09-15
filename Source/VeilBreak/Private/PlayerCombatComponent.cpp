@@ -243,14 +243,14 @@ void UPlayerCombatComponent::PerformHitScan()
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(GetOwner());
 
-	// 카메라 중앙에서 직선 명중 판정 실행
+	// 보스 담당자가 만든 전용 피격 채널로 직선 명중 판정 실행
 	FHitResult HitResult;
 
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(
 		HitResult,
 		ViewLocation,
 		TraceEnd,
-		ECC_Visibility,
+		ECC_GameTraceChannel1,
 		QueryParams
 	);
 
