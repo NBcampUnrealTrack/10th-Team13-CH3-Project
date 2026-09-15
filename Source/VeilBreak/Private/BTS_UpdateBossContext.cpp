@@ -28,6 +28,7 @@ void UBTS_UpdateBossContext::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* 
 	// 플레이어 부재 시 대상과 거리 초기화
 	if (!PlayerPawn)
 	{
+		if (ABossCharacterBase* Boss = Cast<ABossCharacterBase>(BossPawn)) Boss->UpdatePlayerNoDamageState(nullptr);
 		Controller->StopMovement();
 		bIsChasingTarget = false;
 		Blackboard->ClearValue(TEXT("TargetActor"));
@@ -41,11 +42,13 @@ void UBTS_UpdateBossContext::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* 
 	Blackboard->SetValueAsFloat(TEXT("TargetDistance"), TargetDistance);
 
 	// 시전 중 이동 중지
-	const ABossCharacterBase* Boss = Cast<ABossCharacterBase>(BossPawn);
+	ABossCharacterBase* Boss = Cast<ABossCharacterBase>(BossPawn);
 	if (!Boss) return;
+	// 플레이어 컴포넌트의 공개 체력을 관찰해 발악용 무피격 시간 갱신
+	Boss->UpdatePlayerNoDamageState(PlayerPawn);
 	// 체력 컴포넌트의 현재 페이즈를 Blackboard에 반영
 	if (const UBossStatComponent* Stat = Boss->GetBossStatComponent()) Blackboard->SetValueAsInt(TEXT("CurrentPhase"), static_cast<int32>(Stat->GetCurrentPhase()));
-	if (Boss->IsMagicAttackRunning())
+	if (Boss->IsPatternRunning())
 	{
 		Controller->StopMovement();
 		return;

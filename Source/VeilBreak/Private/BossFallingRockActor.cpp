@@ -4,6 +4,9 @@
 #include "Materials/MaterialInterface.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
+#include "PlayerHealthComponent.h"
+#include "Engine/World.h"
+#include "Engine/OverlapResult.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -42,8 +45,16 @@ void ABossFallingRockActor::LaunchAt(const FVector& InTarget)
 	StartLocation = GetActorLocation();
 	TargetLocation = InTarget;
 	ElapsedFlightTime = 0.f;
+	FlightDuration = FMath::Max(FVector::Distance(StartLocation, TargetLocation) / FMath::Max(FlightSpeed, 1.f), 0.1f);
 	bLaunched = true;
 	SetLifeSpan(FlightDuration + 2.f);
+}
+
+// 보스 PatternSetter의 착지 피해와 비행속도 적용
+void ABossFallingRockActor::Configure(float InDamage, float InFlightSpeed)
+{
+	Damage = FMath::Max(0.f, InDamage);
+	FlightSpeed = FMath::Max(1.f, InFlightSpeed);
 }
 
 // 선형 수평 이동과 포물선 높이·회전 적용
@@ -67,10 +78,32 @@ void ABossFallingRockActor::FinishFallingRock()
 	RockMesh->SetVisibility(false, true);
 	ImpactCollision->SetSphereRadius(ImpactCollisionRadius, true);
 	ImpactCollision->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+	ApplyImpactDamage();
 	if (ArrivalEffect) UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ArrivalEffect, TargetLocation, FRotator::ZeroRotator, FVector(ImpactEffectScale));
 	// 착지 판정이 유지되는 시간 뒤 액터 제거
 	FTimerHandle ImpactCollisionTimer;
 	GetWorldTimerManager().SetTimer(ImpactCollisionTimer, this, &ABossFallingRockActor::FinishImpactCollision, ImpactCollisionDuration, false);
+}
+
+// 착지 경고 범위 안 Pawn을 한 번씩 검사해 낙석 피해 적용
+void ABossFallingRockActor::ApplyImpactDamage() const
+{
+	if (!GetWorld() || Damage <= 0.f) return;
+	TArray<FOverlapResult> Overlaps;
+	FCollisionObjectQueryParams ObjectTypes;
+	ObjectTypes.AddObjectTypesToQuery(ECC_Pawn);
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(FallingRockImpactDamage), false, GetOwner());
+	GetWorld()->OverlapMultiByObjectType(Overlaps, TargetLocation, FQuat::Identity, ObjectTypes, FCollisionShape::MakeSphere(ImpactCollisionRadius), QueryParams);
+	TSet<AActor*> DamagedActors;
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* TargetActor = Overlap.GetActor();
+		if (!TargetActor || DamagedActors.Contains(TargetActor)) continue;
+		UPlayerHealthComponent* Health = TargetActor->FindComponentByClass<UPlayerHealthComponent>();
+		if (!Health || Health->IsDead()) continue;
+		Health->ApplyDamage(Damage);
+		DamagedActors.Add(TargetActor);
+	}
 }
 
 // 착지 Overlap 판정 종료 후 낙석 액터 제거

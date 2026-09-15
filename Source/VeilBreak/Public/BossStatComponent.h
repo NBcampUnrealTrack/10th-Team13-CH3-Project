@@ -23,6 +23,8 @@ public:
 	UBossStatComponent();
 	// 피해량 적용 후 실제 차감량 반환
 	float ApplyDamage(float DamageAmount);
+	// 페이즈를 역행시키지 않고 체력 회복, 실제 회복량 반환
+	float HealWithoutPhaseRegression(float HealAmount);
 	// 최대 체력 반환
 	float GetMaxHealth() const { return MaxHealth; }
 	// 현재 체력 반환
@@ -53,25 +55,25 @@ protected:
 	// 시작 시 최대 체력으로 현재 체력 초기화
 	virtual void BeginPlay() override;
 	// 보스 총 체력 기본값 2000
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Boss|Stat", meta=(ClampMin="1"))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|Boss", meta=(ClampMin="1"))
 	float MaxHealth = 2000.f;
 	// 피해 처리 뒤 남은 보스 체력
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Boss|Stat")
+	UPROPERTY()
 	float CurrentHealth = 2000.f;
 	// 피해 무시 여부
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Boss|Stat")
+	UPROPERTY()
 	bool bIsInvulnerable = false;
 	// 체력 0 도달 여부
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Boss|Stat")
+	UPROPERTY()
 	bool bIsDead = false;
 	// 현재 체력 구간 페이즈, 시작값 Phase1
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Boss|Phase")
+	UPROPERTY()
 	EBossPhase CurrentPhase = EBossPhase::Phase1;
 	// Phase2 전환 체력 비율, 60%
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Boss|Phase", meta=(ClampMin="0", ClampMax="1"))
+	UPROPERTY()
 	float Phase2HealthThreshold = 0.6f;
 	// Phase3 전환 체력 비율, 30%
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="Boss|Phase", meta=(ClampMin="0", ClampMax="1"))
+	UPROPERTY()
 	float Phase3HealthThreshold = 0.3f;
 	// 체력 비율로 페이즈 갱신, 변경 시 이벤트 발생
 	void EvaluatePhase();

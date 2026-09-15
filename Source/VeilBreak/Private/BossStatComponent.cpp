@@ -34,6 +34,17 @@ float UBossStatComponent::ApplyDamage(float DamageAmount)
 	return AppliedDamage;
 }
 
+// 현재 페이즈를 유지한 채 최대 체력 안에서 회복 적용
+float UBossStatComponent::HealWithoutPhaseRegression(float HealAmount)
+{
+	if (HealAmount <= 0.f || bIsDead) return 0.f;
+	const float PreviousHealth = CurrentHealth;
+	CurrentHealth = FMath::Clamp(CurrentHealth + HealAmount, 0.f, MaxHealth);
+	const float AppliedHealing = CurrentHealth - PreviousHealth;
+	if (AppliedHealing > 0.f) OnHealthChanged.Broadcast(CurrentHealth, MaxHealth);
+	return AppliedHealing;
+}
+
 // 디버그 체력 적용 후 사망 상태·체력 이벤트·페이즈 재평가
 void UBossStatComponent::SetHealthForDebug(float NewHealth)
 {

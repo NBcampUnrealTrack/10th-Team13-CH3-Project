@@ -18,5 +18,6 @@ enum class EBossPattern : uint8
 	MagicAttack UMETA(DisplayName="Magic Attack"),
 	FallingRock UMETA(DisplayName="Falling Rock"),
 	Berserk UMETA(DisplayName="Berserk"),
-	BlackHole UMETA(DisplayName="Black Hole")
+	BlackHole UMETA(DisplayName="Black Hole"),
+	Vortex UMETA(DisplayName="Vortex")
 };
