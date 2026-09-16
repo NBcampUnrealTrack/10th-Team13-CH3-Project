@@ -113,7 +113,7 @@ void AVeilBreakGameMode::PrepareBattle()
 		EVeilBreakBattleResult::None
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("보스 전투 준비 완료"));
+	UE_LOG(LogTemp, Log, TEXT("황금돼지 전투 준비 완료"));
 }
 
 void AVeilBreakGameMode::StartBattle()
@@ -136,7 +136,7 @@ void AVeilBreakGameMode::StartBattle()
 		EVeilBreakGameLoopState::Combat
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("보스 전투 시작"));
+	UE_LOG(LogTemp, Log, TEXT("황금돼지 전투 시작"));
 
 	// BP_GameMode에 전투 시작 사실 전달
 	OnBattleStarted();
@@ -183,18 +183,17 @@ void AVeilBreakGameMode::NotifyBossPhaseChanged(
 
 	// UI 및 연출에 페이즈 변경 알림
 	OnBossPhaseChanged(NewPhase);
-
-	// BP_GameMode에 페이즈 변경 사실 전달
-	OnBossPhaseChanged(NewPhase);
 }
 
 void AVeilBreakGameMode::NotifyBossDefeated()
 {
+	UE_LOG(LogTemp, Warning, TEXT("황금돼지 사망!"));
 	EndBattle(EVeilBreakBattleResult::Victory);
 }
 
 void AVeilBreakGameMode::NotifyPlayerDefeated()
 {
+	UE_LOG(LogTemp, Warning, TEXT("플레이어 사망!"));
 	EndBattle(EVeilBreakBattleResult::Defeat);
 }
 
