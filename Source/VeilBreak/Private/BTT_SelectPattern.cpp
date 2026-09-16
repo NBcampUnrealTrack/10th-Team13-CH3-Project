@@ -28,6 +28,12 @@ EBTNodeResult::Type UBTT_SelectPattern::ExecuteTask(UBehaviorTreeComponent& Owne
 	if (Boss->CanStartVortex(TargetActor)) Candidates.Add(EBossPattern::Vortex);
 	// Phase2 전용 블랙홀 후보 추가
 	if (Stat->GetCurrentPhase() == EBossPhase::Phase2) Candidates.Add(EBossPattern::BlackHole);
+	// Phase3에서만 땅찍기와 중앙 광역 투사체 후보 추가
+	if (Stat->GetCurrentPhase() == EBossPhase::Phase3)
+	{
+		Candidates.Add(EBossPattern::GroundSmash);
+		Candidates.Add(EBossPattern::CenterProjectile);
+	}
 	// 후보 중 하나를 선택해 BT Selector 분기에 전달
 	const EBossPattern SelectedPattern = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
 	Blackboard->SetValueAsInt(TEXT("SelectedPattern"), static_cast<int32>(SelectedPattern));
