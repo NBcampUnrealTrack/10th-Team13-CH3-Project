@@ -8,6 +8,10 @@
 #include "PlayerHealthComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
+#include "GameFramework/PlayerController.h"
+#include "Engine/TargetPoint.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 AVeilBreakGameMode::AVeilBreakGameMode()
 {
@@ -69,7 +73,16 @@ void AVeilBreakGameMode::RestartPlayer(AController* NewPlayer)
 	);
 
 	UE_LOG(LogTemp, Log, TEXT("플레이어 사망 이벤트 연결 완료"));
+	// 생성된 플레이어의 컨트롤러로 HUD 표시 요청
+	APlayerController* PlayerController =
+	Cast<APlayerController>(NewPlayer);
+
+	if (IsValid(PlayerController) && PlayerController->IsLocalController())
+	{
+		OnPlayerReadyForHUD(PlayerController);
+	}
 }
+
 
 void AVeilBreakGameMode::PrepareBattle()
 {
@@ -100,7 +113,7 @@ void AVeilBreakGameMode::PrepareBattle()
 		EVeilBreakBattleResult::None
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("보스 전투 준비 완료"));
+	UE_LOG(LogTemp, Log, TEXT("황금돼지 전투 준비 완료"));
 }
 
 void AVeilBreakGameMode::StartBattle()
@@ -123,7 +136,7 @@ void AVeilBreakGameMode::StartBattle()
 		EVeilBreakGameLoopState::Combat
 	);
 
-	UE_LOG(LogTemp, Log, TEXT("보스 전투 시작"));
+	UE_LOG(LogTemp, Log, TEXT("황금돼지 전투 시작"));
 
 	// BP_GameMode에 전투 시작 사실 전달
 	OnBattleStarted();
@@ -165,18 +178,22 @@ void AVeilBreakGameMode::NotifyBossPhaseChanged(
 		TEXT("보스 페이즈 변경: %d"),
 		static_cast<int32>(NewPhase)
 	);
+	// 플레이어와 보스를 해당 페이즈 구역으로 이동
+	MoveActorsToPhaseArea(NewPhase);
 
-	// BP_GameMode에 페이즈 변경 사실 전달
+	// UI 및 연출에 페이즈 변경 알림
 	OnBossPhaseChanged(NewPhase);
 }
 
 void AVeilBreakGameMode::NotifyBossDefeated()
 {
+	UE_LOG(LogTemp, Warning, TEXT("황금돼지 사망!"));
 	EndBattle(EVeilBreakBattleResult::Victory);
 }
 
 void AVeilBreakGameMode::NotifyPlayerDefeated()
 {
+	UE_LOG(LogTemp, Warning, TEXT("플레이어 사망!"));
 	EndBattle(EVeilBreakBattleResult::Defeat);
 }
 
@@ -290,4 +307,78 @@ void AVeilBreakGameMode::BindBossEvents()
 		&AVeilBreakGameMode::NotifyBossDefeated
 	);
 	UE_LOG(LogTemp, Log, TEXT("보스 페이즈·사망 이벤트 연결 완료"));
+}
+
+void AVeilBreakGameMode::MoveActorsToPhaseArea(EBossPhase NewPhase)
+{
+	if (NewPhase != EBossPhase::Phase2)
+	{
+		return;
+	}
+
+	const FName PlayerTag = TEXT("Phase2_Player");
+	const FName BossTag = TEXT("Phase2_Boss");
+
+
+	// 2. 태그가 지정된 Target Point 검색
+	TArray<AActor*> PlayerPoints;
+	TArray<AActor*> BossPoints;
+
+	UGameplayStatics::GetAllActorsOfClassWithTag(
+		this, ATargetPoint::StaticClass(), PlayerTag, PlayerPoints
+	);
+
+	UGameplayStatics::GetAllActorsOfClassWithTag(
+		this, ATargetPoint::StaticClass(), BossTag, BossPoints
+	);
+
+	// 누락 또는 중복 태그가 있으면 이동하지 않음
+	if (PlayerPoints.Num() != 1 || BossPoints.Num() != 1)
+	{
+		UE_LOG(
+			LogTemp, Warning,
+			TEXT("페이즈 이동 실패: %s=%d개, %s=%d개"),
+			*PlayerTag.ToString(), PlayerPoints.Num(),
+			*BossTag.ToString(), BossPoints.Num()
+		);
+		return;
+	}
+
+	// 3. 이동할 플레이어와 보스 확인
+	ACharacter* Player =
+		UGameplayStatics::GetPlayerCharacter(this, 0);
+
+	ABossCharacterBase* Boss = Cast<ABossCharacterBase>(
+		UGameplayStatics::GetActorOfClass(
+			this, ABossCharacterBase::StaticClass()
+		)
+	);
+
+	if (!IsValid(Player) || !IsValid(Boss))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("페이즈 이동 실패: 캐릭터 없음"));
+		return;
+	}
+
+	// 4. 이동 직전의 속도를 정리
+	Player->GetCharacterMovement()->StopMovementImmediately();
+	Boss->GetCharacterMovement()->StopMovementImmediately();
+
+	// 5. 충돌을 확인하며 각 목적지로 이동
+	const bool bPlayerMoved = Player->TeleportTo(
+		PlayerPoints[0]->GetActorLocation(),
+		PlayerPoints[0]->GetActorRotation()
+	);
+
+	const bool bBossMoved = Boss->TeleportTo(
+		BossPoints[0]->GetActorLocation(),
+		BossPoints[0]->GetActorRotation()
+	);
+
+	UE_LOG(
+		LogTemp, Log,
+		TEXT("페이즈 이동 결과: Player=%s, Boss=%s"),
+		bPlayerMoved ? TEXT("성공") : TEXT("실패"),
+		bBossMoved ? TEXT("성공") : TEXT("실패")
+	);
 }

@@ -43,6 +43,13 @@ public:
 	void RestartBattle();
 
 protected:
+	// 페이즈에 맞는 구역으로 플레이어와 보스를 이동
+	void MoveActorsToPhaseArea(EBossPhase NewPhase);
+
+	// 플레이어 생성 후 HUD 표시를 BP에 요청
+	UFUNCTION(BlueprintImplementableEvent, Category = "Game Loop|UI")
+	void OnPlayerReadyForHUD(APlayerController* PlayerController);
+
 	// 승리와 패배의 공통 종료 처리
 	void EndBattle(EVeilBreakBattleResult Result);
 
