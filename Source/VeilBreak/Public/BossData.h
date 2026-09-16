@@ -19,5 +19,9 @@ enum class EBossPattern : uint8
 	FallingRock UMETA(DisplayName="Falling Rock"),
 	Berserk UMETA(DisplayName="Berserk"),
 	BlackHole UMETA(DisplayName="Black Hole"),
-	Vortex UMETA(DisplayName="Vortex")
+	Vortex UMETA(DisplayName="Vortex"),
+	// 3페이즈 전용 땅찍기 패턴 식별값
+	GroundSmash UMETA(DisplayName="Ground Smash"),
+	// 3페이즈 전용 중앙 광역 투사체 패턴 식별값
+	CenterProjectile UMETA(DisplayName="Center Projectile")
 };
