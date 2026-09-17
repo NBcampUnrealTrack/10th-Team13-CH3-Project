@@ -39,6 +39,10 @@ AAmmoItem::AAmmoItem()
 	ItemMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	ItemMesh->SetGenerateOverlapEvents(false);
 	ItemMesh->SetSimulatePhysics(false);
+
+	// AI 이동 경로에 장애물로 미반영
+	PickupSphere->SetCanEverAffectNavigation(false);
+	ItemMesh->SetCanEverAffectNavigation(false);
 }
 
 void AAmmoItem::BeginPlay()
@@ -53,6 +57,23 @@ void AAmmoItem::BeginPlay()
 		this,
 		&AAmmoItem::OnPickupBeginOverlap
 	);
+
+	// 시작할 때 이미 겹쳐 있는 플레이어도 확인
+	TArray<AActor*> OverlappingActors;
+	PickupSphere->GetOverlappingActors(
+		OverlappingActors,
+		APawn::StaticClass()
+	);
+
+	for (AActor* Actor : OverlappingActors)
+	{
+		TryPickup(Actor);
+
+		if (bPickupInProgress)
+		{
+			break;
+		}
+	}
 }
 
 void AAmmoItem::OnPickupBeginOverlap(
