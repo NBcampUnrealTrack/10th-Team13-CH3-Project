@@ -1,31 +1,54 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "AmmoItem.generated.h"
 
+class USphereComponent;
+class UStaticMeshComponent;
+class UPrimitiveComponent;
+
 UCLASS()
 class VEILBREAK_API AAmmoItem : public AActor
 {
 	GENERATED_BODY()
-	
-public:	
-	// Sets default values for this actor's properties
+
+public:
 	AAmmoItem();
 
 protected:
-    virtual void BeginPlay() override;
+	virtual void BeginPlay() override;
 
-    // 접촉 감지용 SphereComponent
-    // 외형 표시용 StaticMeshComponent
+	// 플레이어 접근을 감지하는 영역
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ammo Item")
+	TObjectPtr<USphereComponent> PickupSphere;
 
-    // BP에서 정할 지급 탄약 수
-    // 중복 습득 방지 상태
+	// 아이템 외형
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ammo Item")
+	TObjectPtr<UStaticMeshComponent> ItemMesh;
 
-    // 오버랩 콜백: 접촉한 액터를 TryPickup에 전달
+	// 아이템 하나가 지급할 예비 탄약 수
+	UPROPERTY(
+		EditAnywhere,
+		BlueprintReadOnly,
+		Category = "Ammo Item",
+		meta = (ClampMin = "1")
+	)
+	int32 AmmoAmount = 6;
 
-    void TryPickup(AActor* OtherActor); rtual void Tick(float DeltaTime) override;
+private:
+	// 이벤트가 중복 발생하더라도 탄약 중복 지급 방지
+	bool bPickupInProgress = false;
 
+	UFUNCTION()
+	void OnPickupBeginOverlap(
+		UPrimitiveComponent* OverlappedComponent,
+		AActor* OtherActor,
+		UPrimitiveComponent* OtherComp,
+		int32 OtherBodyIndex,
+		bool bFromSweep,
+		const FHitResult& SweepResult
+	);
+
+	void TryPickup(AActor* OtherActor);
 };
