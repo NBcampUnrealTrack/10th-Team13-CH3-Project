@@ -15,7 +15,7 @@ class VEILBREAK_API AAmmoSpawnVolume : public AActor
 public:
 	AAmmoSpawnVolume();
 
-	// 볼륨 안에 탄약 생성. 이미 실행한 경우 중복 실행하지 않음
+	// 볼륨 안에 탄약 생성. 중복 실행X
 	UFUNCTION(BlueprintCallable, Category = "Ammo Spawn")
 	void SpawnAmmo();
 
