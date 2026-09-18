@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "BossData.h"
 #include "BossCharacterBase.generated.h"
 
 class UBossStatComponent;
@@ -17,6 +18,9 @@ class VEILBREAK_API ABossCharacterBase : public ACharacter
 public:
 	// 생성자: Sevarog
 	ABossCharacterBase();
+	// ABP 포즈 선택과 기존 팀원 패턴의 Single Node 호환 연결
+	int32 GetAnimationMotionIndex() const;
+	void PreparePatternAnimation(EBossPattern Pattern);
 	// BP에서 지정한 보스 이동속도를 CharacterMovement에 적용
 	virtual void BeginPlay() override;
 	// Player 0 숫자 0 입력 감지, 디버그 체력·페이즈 순환 호출
@@ -72,15 +76,30 @@ protected:
 	TObjectPtr<class UBossStatComponent> BossStatComponent;
 	// 종료 시 시전 타이머 정리
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-	// Idle 기본 모션
+	// 팀원 Single Node 패턴의 호환 복귀 포즈
 	UPROPERTY()
 	TObjectPtr<class UAnimSequence> IdleMotion;
-	// Sevarog Cast 모션
+	// ABP Cast 노드와 동일한 시퀀스: 게임 로직 타이머 길이 조회용
 	UPROPERTY()
 	TObjectPtr<class UAnimSequence> CastMotion;
-	// 체력 0 도달 시 한 번 재생할 Sevarog 사망 모션
+	// ABP 사망 노드와 동일한 시퀀스: 숨김 타이머 길이 조회용
 	UPROPERTY()
 	TObjectPtr<class UAnimSequence> DeathMotion;
+	// 사망 모션 재생 속도, 기본 속도의 40%
+	UPROPERTY()
+	float DeathAnimationPlayRate = 0.4f;
+	// 사망 모션 종료 후 보스를 감추며 재생할 영혼 폭발 이펙트
+	UPROPERTY()
+	TObjectPtr<class UParticleSystem> DeathDisappearEffect;
+	// 사망 이펙트 월드 크기 배율
+	UPROPERTY()
+	float DeathDisappearEffectScale = 4.f;
+	// 중심 포함 사망 이펙트 동시 생성 개수
+	UPROPERTY()
+	int32 DeathDisappearEffectCount = 7;
+	// 중심 외 사망 이펙트의 보스 주변 배치 반경, cm
+	UPROPERTY()
+	float DeathDisappearEffectRadius = 140.f;
 	// 사망 시 재생할 Sevarog 보이스
 	UPROPERTY()
 	TObjectPtr<class USoundBase> DeathVoice;
@@ -102,12 +121,9 @@ protected:
 	// 생성할 낙석 투사체 BP 클래스
 	UPROPERTY()
 	TSubclassOf<class ABossFallingRockActor> FallingRockClass;
-	// Sevarog Ultimate Swing 모션
+	// ABP 낙석 노드와 동일한 시퀀스: 게임 로직 타이머 길이 조회용
 	UPROPERTY()
 	TObjectPtr<class UAnimSequence> FallingRockMotion;
-	// 발악 중 반복 재생할 Sevarog Knock Back 모션
-	UPROPERTY()
-	TObjectPtr<class UAnimSequence> BerserkMotion;
 	// 생성할 사격 파괴용 발악 구체 BP 클래스
 	UPROPERTY()
 	TSubclassOf<ABossBerserkActor> BerserkOrbClass;
@@ -208,15 +224,23 @@ protected:
 	UPROPERTY()
 	bool bEnablePhaseDebugInput = true;
 private:
+	void RestoreBossAnimationBlueprint();
+	bool bLegacyPatternAnimation = false;
+	UPROPERTY(Transient)
+	TSubclassOf<UAnimInstance> BossAnimationClass;
 	// 다음 숫자 0 입력에 적용할 페이즈 순번, 시작 상태 Phase1 다음인 Phase2부터 적용
 	int32 DebugPhaseIndex = 1;
 	// 시전 중 고정된 목표 좌표
 	FVector MagicTarget = FVector::ZeroVector;
-	// 현재 Cast 진행 여부
+	
+	
+	
+	
+	// 현재 magic attack 패턴 진행 여부
 	bool bMagicAttackRunning = false;
 	// 이번 시전 투사체 생성 여부
 	bool bMagicAttackLaunched = false;
-	// 현재 FallingRock 시전 진행 여부
+	// 현재 FallingRock 패턴 진행 여부
 	bool bFallingRockRunning = false;
 	// 현재 발악 패턴 진행 여부
 	bool bBerserkRunning = false;
@@ -266,6 +290,8 @@ private:
 	FTimerHandle FallingRockWarningTimer;
 	// FallingRock 위험 지점 경고 제거 타이머
 	FTimerHandle FallingRockWarningClearTimer;
+	// 사망 모션 종료 후 이펙트와 숨김 처리를 예약하는 타이머
+	FTimerHandle DeathDisappearTimer;
 	// 현재 표시 중인 FallingRock 위험 지점 ParticleSystem 컴포넌트
 	TObjectPtr<class UParticleSystemComponent> FallingRockWarningComponent;
 	// 손 위치에서 목표로 투사체 생성
@@ -295,4 +321,8 @@ private:
 	// 체력 0 이벤트 처리, 패턴 중단·이동 및 BT 정지·사망 모션 재생
 	UFUNCTION()
 	void HandleBossDied();
+	// 사망 이펙트 생성 후 메시·콜리전 숨김, 액터는 GameMode 처리를 위해 유지
+	void FinishBossDeathPresentation();
+	// 숫자 0 디버그용 부활, 사망 연출 취소 후 표시·이동·BT 복구
+	void ReviveBossForDebug();
 };

@@ -34,13 +34,19 @@ protected:
 	float ImpactEffectScale = 2.f;
 	// 착지 Overlap 콜리전 반경, cm
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FallingRock", meta=(ClampMin="1"))
-	float ImpactCollisionRadius = 300.f;
+	float ImpactCollisionRadius = 450.f;
 	// 착지 Overlap 콜리전 활성 유지 시간, 초
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FallingRock", meta=(ClampMin="0.01"))
 	float ImpactCollisionDuration = 0.2f;
 	// 낙석 착지 범위에 한 번 적용할 피해량
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="FallingRock|Damage")
 	float Damage = 1.f;
+	// 낙석 중심에서 바깥쪽으로 밀어내는 수평 넉백 속도
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FallingRock|Knockback", meta=(ClampMin="0"))
+	float KnockbackHorizontalStrength = 600.f;
+	// 낙석 피격 캐릭터를 위로 띄우는 수직 넉백 속도
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="FallingRock|Knockback", meta=(ClampMin="0"))
+	float KnockbackVerticalStrength = 200.f;
 	// 포물선 경로 계산에 사용할 투사체 속도, cm/s
 	UPROPERTY(VisibleInstanceOnly, Category="FallingRock")
 	float FlightSpeed = 1200.f;

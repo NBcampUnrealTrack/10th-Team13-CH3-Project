@@ -7,6 +7,7 @@
 #include "PlayerHealthComponent.h"
 #include "Engine/World.h"
 #include "Engine/OverlapResult.h"
+#include "GameFramework/Character.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -102,6 +103,16 @@ void ABossFallingRockActor::ApplyImpactDamage() const
 		UPlayerHealthComponent* Health = TargetActor->FindComponentByClass<UPlayerHealthComponent>();
 		if (!Health || Health->IsDead()) continue;
 		Health->ApplyDamage(Damage);
+		// 낙석 중심에서 바깥쪽으로 수평 600·수직 200 기본 넉백 적용
+		if (ACharacter* HitCharacter = Cast<ACharacter>(TargetActor))
+		{
+			FVector KnockbackDirection = HitCharacter->GetActorLocation() - TargetLocation;
+			KnockbackDirection.Z = 0.f;
+			KnockbackDirection = KnockbackDirection.GetSafeNormal();
+			FVector KnockbackVelocity = KnockbackDirection * KnockbackHorizontalStrength;
+			KnockbackVelocity.Z = KnockbackVerticalStrength;
+			HitCharacter->LaunchCharacter(KnockbackVelocity, true, true);
+		}
 		DamagedActors.Add(TargetActor);
 	}
 }

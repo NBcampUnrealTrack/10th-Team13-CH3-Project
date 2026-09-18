@@ -1,5 +1,8 @@
 
 #include "BossCharacterBase.h"
+#include "BossAnimInstance.h"
+#include "BehaviorTree/BehaviorTreeComponent.h"
+#include "BehaviorTree/Tasks/BTTask_Wait.h"
 #include "BossAIController.h"
 #include "BossMagicAttackActor.h"
 #include "BossFallingRockActor.h"
@@ -72,9 +75,6 @@ ABossCharacterBase::ABossCharacterBase()
 	// 낙석 시전용 Ultimate Swing 모션
 	static ConstructorHelpers::FObjectFinder<UAnimSequence> UltimateSwingAnimation(
 		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Ultimate_Swing_120fps.Ultimate_Swing_120fps"));
-	// 발악 유지 중 반복할 Knock Back 모션
-	static ConstructorHelpers::FObjectFinder<UAnimSequence> BerserkAnimation(
-		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Knock_back_bwd.Knock_back_bwd"));
 	// 사격으로 파괴할 발악 구체 상속 BP
 	static ConstructorHelpers::FClassFinder<ABossBerserkActor> BerserkOrbBlueprint(
 		TEXT("/Game/Boss/Patterns/BP_BossBerserk"));
@@ -84,6 +84,9 @@ ABossCharacterBase::ABossCharacterBase()
 	// 낙석 위험 지점 표시용 Sevarog 지속 타기팅 이펙트
 	static ConstructorHelpers::FObjectFinder<UParticleSystem> FallingRockWarning(
 		TEXT("/Game/ParagonSevarog/FX/Particles/Abilities/SoulSiphon/FX/P_SiphonTargeting.P_SiphonTargeting"));
+	// 사망 모션 종료 후 보스가 사라질 때 재생할 Sevarog 영혼 폭발 이펙트
+	static ConstructorHelpers::FObjectFinder<UParticleSystem> DeathDisappearParticle(
+		TEXT("/Game/ParagonSevarog/FX/Particles/Abilities/SoulStackPassive/FX/P_SoulStageEmbersBurst.P_SoulStageEmbersBurst"));
 	if (CastAnimation.Succeeded()) CastMotion = CastAnimation.Object;
 	if (DeathAnimation.Succeeded()) DeathMotion = DeathAnimation.Object;
 	if (DeathVoiceCue.Succeeded()) DeathVoice = DeathVoiceCue.Object;
@@ -94,10 +97,10 @@ ABossCharacterBase::ABossCharacterBase()
 	MagicAttackClass = MagicBlueprint.Succeeded() ? MagicBlueprint.Class.Get() : ABossMagicAttackActor::StaticClass();
 	FallingRockClass = FallingRockBlueprint.Succeeded() ? FallingRockBlueprint.Class.Get() : ABossFallingRockActor::StaticClass();
 	if (UltimateSwingAnimation.Succeeded()) FallingRockMotion = UltimateSwingAnimation.Object;
-	if (BerserkAnimation.Succeeded()) BerserkMotion = BerserkAnimation.Object;
 	BerserkOrbClass = BerserkOrbBlueprint.Succeeded() ? BerserkOrbBlueprint.Class.Get() : ABossBerserkActor::StaticClass();
 	VortexClass = VortexBlueprint.Succeeded() ? VortexBlueprint.Class.Get() : ABossVortexActor::StaticClass();
 	if (FallingRockWarning.Succeeded()) FallingRockWarningEffect = FallingRockWarning.Object;
+	if (DeathDisappearParticle.Succeeded()) DeathDisappearEffect = DeathDisappearParticle.Object;
 	// 피격용 Physics Asset
 	static ConstructorHelpers::FObjectFinder<UPhysicsAsset> BossPhysicsAsset(
 		TEXT("/Game/Boss/Physics/PA_BossSevarog_ShadowCyl.PA_BossSevarog_ShadowCyl"));
@@ -133,22 +136,21 @@ ABossCharacterBase::ABossCharacterBase()
 	GetMesh()->SetCollisionResponseToChannel(WeaponTraceChannel, ECR_Block);
 	GetMesh()->SetSimulatePhysics(false);
 
-	if (IdleAnimation.Succeeded())
-	{
-		IdleMotion = IdleAnimation.Object;
-		// 생성된 인스턴스가 idle을 자동 반복 재생
-		GetMesh()->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-		GetMesh()->AnimationData.AnimToPlay = IdleAnimation.Object;
-		GetMesh()->AnimationData.bSavedLooping = true;
-		GetMesh()->AnimationData.bSavedPlaying = true;
-		GetMesh()->AnimationData.SavedPlayRate = 1.0f;
-	}
+	// 다른 팀원의 Single Node 패턴에서만 사용하는 복귀 포즈
+	if (IdleAnimation.Succeeded()) IdleMotion = IdleAnimation.Object;
+	GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 }
 
 // BP PatternSetter의 이동속도를 실제 CharacterMovement에 적용
 void ABossCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+	BossAnimationClass = GetMesh()->AnimClass;
+	if (!BossAnimationClass || !BossAnimationClass->IsChildOf(UBossAnimInstance::StaticClass()))
+	{
+		BossAnimationClass = LoadClass<UAnimInstance>(nullptr, TEXT("/Game/Boss/Animations/ABP_Boss.ABP_Boss_C"));
+	}
+	RestoreBossAnimationBlueprint();
 	GetCharacterMovement()->MaxWalkSpeed = FMath::Max(0.f, BossMovementSpeed);
 	// 체력 컴포넌트 사망 이벤트를 캐릭터 연출과 AI 정지 처리에 연결
 	if (BossStatComponent) BossStatComponent->OnBossDied.AddUniqueDynamic(this, &ABossCharacterBase::HandleBossDied);
@@ -158,6 +160,14 @@ void ABossCharacterBase::BeginPlay()
 void ABossCharacterBase::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	// 팀원 패턴이 끝나 BT의 대기로 돌아오면 Idle/Walk 상태 머신을 복구
+	if (bLegacyPatternAnimation)
+	{
+		const AAIController* AI = Cast<AAIController>(GetController());
+		const UBehaviorTreeComponent* Tree = AI ? Cast<UBehaviorTreeComponent>(AI->GetBrainComponent()) : nullptr;
+		const UBTNode* ActiveNode = Tree ? Tree->GetActiveNode() : nullptr;
+		if (!Tree || !Tree->IsRunning() || (ActiveNode && ActiveNode->IsA<UBTTask_Wait>())) RestoreBossAnimationBlueprint();
+	}
 	if (!bEnablePhaseDebugInput || !GetWorld()) return;
 	// 현재 플레이어 캐릭터를 조작하는 Player 0 Controller
 	APlayerController* PlayerController = GetWorld()->GetFirstPlayerController();
@@ -167,16 +177,19 @@ void ABossCharacterBase::Tick(float DeltaSeconds)
 	if (bDebugKeyPressed) CycleDebugHealthPhase();
 }
 
-// Phase1 2000·Phase2 1000·Phase3 400 체력 순환 적용
+// Phase1 최대 체력·Phase2 50%·Phase3 40 체력 순환 적용, 사망 상태면 함께 부활
 void ABossCharacterBase::CycleDebugHealthPhase()
 {
 	if (!BossStatComponent) return;
-	// 각 페이즈 내부에 확실히 포함되는 대표 체력 비율
-	constexpr float DebugHealthPercents[] = { 1.f, 0.5f, 0.2f };
+	// 디버그 체력 적용 전 사망 상태
+	const bool bWasDead = BossStatComponent->IsDead();
+	// Phase1·Phase2는 최대 체력 비율, Phase3는 요청된 고정 체력 40 사용
+	const float DebugHealthValues[] = { BossStatComponent->GetMaxHealth(), BossStatComponent->GetMaxHealth() * 0.5f, 40.f };
 	// 현재 순번에 대응하는 디버그 체력
-	const float DebugHealth = BossStatComponent->GetMaxHealth() * DebugHealthPercents[DebugPhaseIndex];
+	const float DebugHealth = DebugHealthValues[DebugPhaseIndex];
 	BossStatComponent->SetHealthForDebug(DebugHealth);
-	DebugPhaseIndex = (DebugPhaseIndex + 1) % UE_ARRAY_COUNT(DebugHealthPercents);
+	if (bWasDead && !BossStatComponent->IsDead()) ReviveBossForDebug();
+	DebugPhaseIndex = (DebugPhaseIndex + 1) % UE_ARRAY_COUNT(DebugHealthValues);
 	// 화면에 표시할 현재 페이즈 번호
 	const int32 PhaseNumber = static_cast<int32>(BossStatComponent->GetCurrentPhase()) + 1;
 	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, FString::Printf(TEXT("Boss Debug - Health: %.0f / %.0f, Phase: %d"), BossStatComponent->GetCurrentHealth(), BossStatComponent->GetMaxHealth(), PhaseNumber));
@@ -185,9 +198,10 @@ void ABossCharacterBase::CycleDebugHealthPhase()
 // Ultimate Swing 재생과 0.8초 뒤 낙석 발사 예약
 bool ABossCharacterBase::StartFallingRock(const FVector& Target)
 {
-	if (IsPatternRunning() || !FallingRockMotion || !IdleMotion || !FallingRockClass || !GetWorld()) return false;
+	if (IsPatternRunning() || !FallingRockMotion || !FallingRockClass || !GetWorld()) return false;
 	const float Duration = FallingRockMotion->GetPlayLength();
 	if (Duration <= 0.f) return false;
+	RestoreBossAnimationBlueprint();
 	// 플레이어 위치 위쪽에서 아래로 검사할 지면 Trace 시작점
 	const FVector GroundTraceStart = Target + FVector(0.f, 0.f, 5000.f);
 	// 플레이어 위치 아래쪽까지 검사할 지면 Trace 끝점
@@ -205,7 +219,6 @@ bool ABossCharacterBase::StartFallingRock(const FVector& Target)
 	bFallingRockRunning = true;
 	// 낙석 시전 시작 보이스 1회 재생
 	if (FallingRockVoice) UGameplayStatics::PlaySoundAtLocation(this, FallingRockVoice, GetActorLocation());
-	GetMesh()->PlayAnimation(FallingRockMotion, false);
 	GetWorldTimerManager().SetTimer(FallingRockWarningTimer, this, &ABossCharacterBase::ShowFallingRockWarning, FallingRockWarningDelay, false);
 	GetWorldTimerManager().SetTimer(FallingRockReleaseTimer, this, &ABossCharacterBase::ReleaseFallingRock, FMath::Clamp(FallingRockReleaseDelay, 0.01f, Duration * 0.95f), false);
 	GetWorldTimerManager().SetTimer(FallingRockWarningClearTimer, this, &ABossCharacterBase::ClearFallingRockWarning, FallingRockWarningDelay + FallingRockWarningDuration, false);
@@ -283,18 +296,75 @@ void ABossCharacterBase::HandleBossDied()
 		BossController->StopBossBehavior();
 	}
 
-	// 액터를 유지한 채 사망 모션 한 번 재생, 실제 디스폰은 GameMode 담당
+	// 액터를 유지한 채 느려진 사망 모션 한 번 재생, 실제 디스폰은 GameMode 담당
 	if (DeathVoice) UGameplayStatics::PlaySoundAtLocation(this, DeathVoice, GetActorLocation());
-	if (DeathMotion) GetMesh()->PlayAnimation(DeathMotion, false);
+	// 사망 모션의 실제 재생시간, PlayRate 감소분 반영
+	const float SafeDeathPlayRate = FMath::Max(DeathAnimationPlayRate, 0.01f);
+	const float DeathPresentationDuration = DeathMotion ? DeathMotion->GetPlayLength() / SafeDeathPlayRate : 1.f;
+	RestoreBossAnimationBlueprint();
+	GetWorldTimerManager().SetTimer(DeathDisappearTimer, this, &ABossCharacterBase::FinishBossDeathPresentation, DeathPresentationDuration, false);
+}
+
+// 영혼 폭발 이펙트 생성 후 보스를 화면과 충돌에서 제외
+void ABossCharacterBase::FinishBossDeathPresentation()
+{
+	if (DeathDisappearEffect && GetWorld())
+	{
+		// 중심 1개와 주변 방향에 배치할 이펙트 개수
+		const int32 SafeEffectCount = FMath::Max(1, DeathDisappearEffectCount);
+		for (int32 EffectIndex = 0; EffectIndex < SafeEffectCount; ++EffectIndex)
+		{
+			// 첫 이펙트는 몸 중심, 나머지는 원형으로 균등 배치
+			const bool bIsCenterEffect = EffectIndex == 0;
+			// 주변 이펙트의 수평 배치 각도
+			const float AngleDegrees = bIsCenterEffect ? 0.f : 360.f * static_cast<float>(EffectIndex - 1) / static_cast<float>(SafeEffectCount - 1);
+			// 각도를 위치 계산용 라디안으로 변환
+			const float AngleRadians = FMath::DegreesToRadians(AngleDegrees);
+			// 보스의 상체와 주변을 함께 덮도록 높이를 번갈아 적용
+			const float HeightOffset = bIsCenterEffect ? 120.f : 70.f + static_cast<float>(EffectIndex % 2) * 100.f;
+			// 중심 또는 보스 주변 원형 배치 오프셋
+			const FVector EffectOffset = bIsCenterEffect
+				? FVector(0.f, 0.f, HeightOffset)
+				: FVector(FMath::Cos(AngleRadians) * DeathDisappearEffectRadius, FMath::Sin(AngleRadians) * DeathDisappearEffectRadius, HeightOffset);
+			// 방사형으로 퍼져 보이도록 각 이펙트에 서로 다른 회전 적용
+			const FRotator EffectRotation(bIsCenterEffect ? 0.f : (EffectIndex % 2 == 0 ? 25.f : -25.f), AngleDegrees, AngleDegrees * 0.5f);
+			// 중심 이펙트를 가장 크게, 주변 이펙트는 시야를 가리지 않도록 약간 축소
+			const float InstanceScale = DeathDisappearEffectScale * (bIsCenterEffect ? 1.f : 0.8f);
+			UGameplayStatics::SpawnEmitterAtLocation(
+				GetWorld(), DeathDisappearEffect,
+				FTransform(EffectRotation, GetActorLocation() + EffectOffset, FVector(InstanceScale)),
+				true, EPSCPoolMethod::AutoRelease, true);
+		}
+	}
+	SetActorEnableCollision(false);
+	SetActorHiddenInGame(true);
+}
+
+// 사망 상태에서 숫자 0 입력 시 보스 표시·이동·Idle·Behavior Tree 복구
+void ABossCharacterBase::ReviveBossForDebug()
+{
+	GetWorldTimerManager().ClearTimer(DeathDisappearTimer);
+	RestoreBossAnimationBlueprint();
+	GetMesh()->InitAnim(true);
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	if (BossStatComponent) BossStatComponent->SetInvulnerable(false);
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GetCharacterMovement()->MaxWalkSpeed = FMath::Max(0.f, BossMovementSpeed);
+	if (ABossAIController* BossController = Cast<ABossAIController>(GetController()))
+	{
+		BossController->RestartBossBehavior();
+	}
 }
 
 // Cast 시작과 발사 예약, 애니메이션 상태와 독립된 타이머로 시전 종료 보장
 bool ABossCharacterBase::StartMagicAttack(const FVector& Target)
 {
-	if (bMagicAttackRunning || !CastMotion || !IdleMotion || !MagicAttackClass || !GetWorld()) return false;
+	if (IsPatternRunning() || !CastMotion || !MagicAttackClass || !GetWorld()) return false;
 	// Cast 재생 길이, 초
 	const float Duration = CastMotion->GetPlayLength();
 	if (Duration <= 0.f) return false;
+	RestoreBossAnimationBlueprint();
 	MagicTarget = Target;
 	// 목표를 향한 수평 방향으로 보스 회전
 	const FVector ToTarget = MagicTarget - GetActorLocation();
@@ -303,7 +373,6 @@ bool ABossCharacterBase::StartMagicAttack(const FVector& Target)
 	bMagicAttackLaunched = false;
 	// 마법공격 시전 시작 보이스 1회 재생
 	if (MagicAttackVoice) UGameplayStatics::PlaySoundAtLocation(this, MagicAttackVoice, GetActorLocation());
-	GetMesh()->PlayAnimation(CastMotion, false);
 	GetWorldTimerManager().SetTimer(MagicReleaseTimer, this, &ABossCharacterBase::ReleaseMagicAttack, FMath::Clamp(MagicReleaseDelay, 0.01f, Duration * 0.95f), false);
 	GetWorldTimerManager().SetTimer(MagicFinishTimer, this, &ABossCharacterBase::FinishMagicAttack, Duration, false);
 	return true;
@@ -334,7 +403,6 @@ void ABossCharacterBase::ReleaseMagicAttack()
 void ABossCharacterBase::FinishMagicAttack()
 {
 	bMagicAttackRunning = false;
-	if (IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
 }
 
 // 시전 시 저장한 목표를 향해 보스 손에서 포물선 낙석 생성
@@ -360,13 +428,12 @@ void ABossCharacterBase::ReleaseFallingRock()
 void ABossCharacterBase::FinishFallingRock()
 {
 	bFallingRockRunning = false;
-	if (IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
 }
 
 // 패턴 실행 상태·거리·무피격 시간·쿨타임 기준 발악 가능 여부 반환
 bool ABossCharacterBase::CanStartBerserk(AActor* TargetActor) const
 {
-	if (!TargetActor || IsPatternRunning() || !BerserkMotion || !BerserkOrbClass || !GetWorld() || !BossStatComponent || BossStatComponent->IsDead()) return false;
+	if (!TargetActor || IsPatternRunning() || !BerserkOrbClass || !GetWorld() || !BossStatComponent || BossStatComponent->IsDead()) return false;
 	if (FVector::DistSquared(GetActorLocation(), TargetActor->GetActorLocation()) > FMath::Square(BerserkRange)) return false;
 	return bHasObservedPlayerHealth && ObservedBerserkTarget.Get() == TargetActor && GetWorld()->GetTimeSeconds() - LastObservedPlayerDamageTime >= 20.0 && GetWorld()->GetTimeSeconds() >= NextBerserkAvailableTime;
 }
@@ -404,6 +471,7 @@ void ABossCharacterBase::UpdatePlayerNoDamageState(AActor* TargetActor)
 bool ABossCharacterBase::StartBerserk(AActor* TargetActor)
 {
 	if (!CanStartBerserk(TargetActor)) return false;
+	RestoreBossAnimationBlueprint();
 	bBerserkRunning = true;
 	NextBerserkAvailableTime = GetWorld()->GetTimeSeconds() + BerserkCooldown;
 	BossStatComponent->SetInvulnerable(true);
@@ -411,7 +479,6 @@ bool ABossCharacterBase::StartBerserk(AActor* TargetActor)
 	if (BerserkVoice) UGameplayStatics::PlaySoundAtLocation(this, BerserkVoice, GetActorLocation());
 	const FVector ToTarget = TargetActor->GetActorLocation() - GetActorLocation();
 	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.f, ToTarget.Rotation().Yaw, 0.f));
-	GetMesh()->PlayAnimation(BerserkMotion, true);
 	SpawnBerserkOrbs();
 	if (RemainingBerserkOrbs <= 0)
 	{
@@ -477,13 +544,13 @@ void ABossCharacterBase::FinishBerserk(bool bTimedOut)
 	}
 	ActiveBerserkOrbs.Reset();
 	RemainingBerserkOrbs = 0;
-	if (IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
 }
 
 // Phase1·사거리·쿨타임 확인 후 Cast와 0.3초 생성 예약 시작
 bool ABossCharacterBase::StartVortex(AActor* TargetActor)
 {
 	if (!CanStartVortex(TargetActor)) return false;
+	RestoreBossAnimationBlueprint();
 	PendingVortexTarget = TargetActor;
 	bVortexRunning = true;
 	bVortexCasting = true;
@@ -492,7 +559,6 @@ bool ABossCharacterBase::StartVortex(AActor* TargetActor)
 	if (VortexVoice) UGameplayStatics::PlaySoundAtLocation(this, VortexVoice, GetActorLocation());
 	const FVector ToTarget = TargetActor->GetActorLocation() - GetActorLocation();
 	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.f, ToTarget.Rotation().Yaw, 0.f));
-	GetMesh()->PlayAnimation(CastMotion, false);
 	GetWorldTimerManager().SetTimer(VortexSpawnTimer, this, &ABossCharacterBase::SpawnVortex, VortexSpawnDelay, false);
 	GetWorldTimerManager().SetTimer(VortexCastFinishTimer, this, &ABossCharacterBase::FinishVortexCast, CastMotion->GetPlayLength(), false);
 	return true;
@@ -531,7 +597,6 @@ bool ABossCharacterBase::CanStartVortex(AActor* TargetActor) const
 void ABossCharacterBase::FinishVortexCast()
 {
 	bVortexCasting = false;
-	if (!IsPatternRunning() && IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
 }
 
 // 유지시간이 끝난 소용돌이 제거·실행 상태 초기화
@@ -546,13 +611,13 @@ void ABossCharacterBase::FinishVortex()
 	if (ActiveVortex.IsValid()) ActiveVortex->Destroy();
 	ActiveVortex.Reset();
 	PendingVortexTarget.Reset();
-	if (!IsPatternRunning() && IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
 }
 
 // 종료 시 예약된 마법 시전 타이머 해제
 void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (BossStatComponent) BossStatComponent->OnBossDied.RemoveDynamic(this, &ABossCharacterBase::HandleBossDied);
+	GetWorldTimerManager().ClearTimer(DeathDisappearTimer);
 	GetWorldTimerManager().ClearTimer(MagicReleaseTimer);
 	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockReleaseTimer);
@@ -571,4 +636,40 @@ void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	}
 	ClearFallingRockWarning();
 	Super::EndPlay(EndPlayReason);
+}
+
+// ABP의 Blend Poses 입력 순서. 사망이 1순위
+int32 ABossCharacterBase::GetAnimationMotionIndex() const
+{
+	if (BossStatComponent && BossStatComponent->IsDead()) return 5;
+	if (bBerserkRunning) return 3;
+	if (bFallingRockRunning) return 2;
+	if (bMagicAttackRunning) return 1;
+	if (bVortexCasting) return 4;
+	
+	
+	return 0;
+}
+
+// 기존 패턴 모션 그대로 실행
+void ABossCharacterBase::PreparePatternAnimation(EBossPattern Pattern)
+{
+	const bool bLegacy = Pattern == EBossPattern::GroundSmash || Pattern == EBossPattern::CenterProjectile || Pattern == EBossPattern::BlackHole;
+	if (bLegacy && !(BossStatComponent && BossStatComponent->IsDead()))
+	{
+		bLegacyPatternAnimation = true;
+		GetMesh()->PlayAnimation(IdleMotion, true);
+	}
+	else RestoreBossAnimationBlueprint();
+}
+
+void ABossCharacterBase::RestoreBossAnimationBlueprint()
+{
+	bLegacyPatternAnimation = false;
+	if (!BossAnimationClass) return;
+	if (GetMesh()->AnimClass != BossAnimationClass) GetMesh()->SetAnimInstanceClass(BossAnimationClass);
+	if (GetMesh()->GetAnimationMode() != EAnimationMode::AnimationBlueprint)
+	{
+		GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	}
 }

@@ -13,6 +13,8 @@ public:
     ABossAIController();
     // 보스 사망 시 이동과 Behavior Tree 실행 정지
     void StopBossBehavior();
+    // 디버그 부활 시 중단된 Behavior Tree 실행 재시작
+    void RestartBossBehavior();
 protected:
     // 보스 소유 시 BB 초기화 후 BT 반복 실행
     virtual void OnPossess(APawn* InPawn) override;

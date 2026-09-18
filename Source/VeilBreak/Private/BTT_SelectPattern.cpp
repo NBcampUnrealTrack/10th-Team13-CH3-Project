@@ -36,6 +36,7 @@ EBTNodeResult::Type UBTT_SelectPattern::ExecuteTask(UBehaviorTreeComponent& Owne
 	}
 	// 후보 중 하나를 선택해 BT Selector 분기에 전달
 	const EBossPattern SelectedPattern = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
+	Boss->PreparePatternAnimation(SelectedPattern);
 	Blackboard->SetValueAsInt(TEXT("SelectedPattern"), static_cast<int32>(SelectedPattern));
 	return EBTNodeResult::Succeeded;
 }
