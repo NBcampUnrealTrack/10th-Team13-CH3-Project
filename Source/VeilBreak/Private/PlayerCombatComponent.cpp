@@ -1,15 +1,17 @@
 #include "PlayerCombatComponent.h"
 
+#include "BossBerserkActor.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "PlayerSkillComponent.h"
 
 UPlayerCombatComponent::UPlayerCombatComponent()
 {
-	// 전투 기능은 입력과 타이머로 처리하므로 Tick 비활성화
+	// 입력과 타이머로 처리하므로 Tick 비활성화
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
@@ -17,69 +19,85 @@ void UPlayerCombatComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// 잘못된 탄약 설정이 들어오지 않도록 최소값 보정
+	// 탄약 설정 보정
 	CylinderCapacity = FMath::Max(CylinderCapacity, 1);
 	MaxReserveAmmo = FMath::Max(MaxReserveAmmo, 0);
 
-	// 게임 시작 시 실린더와 예비 탄약을 최대치로 설정
+	// 시작 탄약 설정
 	CurrentAmmo = CylinderCapacity;
 	ReserveAmmo = MaxReserveAmmo;
 
-	// 게임 시작 시 전투 상태 초기화
+	// 전투 상태 초기화
 	bCanFire = true;
 	bIsReloading = false;
 	CurrentDamageMultiplier = 1.0f;
 	CurrentReloadTimeMultiplier = 1.0f;
 
+	// 과녁 중복 처리 기록 초기화
+	HitUltimateTargets.Empty();
+
 	// 초기 탄약 정보를 UI에 전달
 	BroadcastAmmoChanged();
+
+	// 수정한 컴포넌트가 실제로 실행되는지 확인
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("SHOT_CHECK: Combat BeginPlay | Owner=%s"),
+		*GetNameSafe(GetOwner())
+	);
 }
 
 void UPlayerCombatComponent::TryFire()
 {
+	// 사격 입력이 전투 컴포넌트까지 도달하는지 확인
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("SHOT_CHECK: TryFire | CanFire=%d | Ammo=%d"),
+		bCanFire ? 1 : 0,
+		CurrentAmmo
+	);
+
 	if (!bCanFire)
 	{
-		// 발사 간격이 끝나지 않았다면 사격하지 않음
+		// 발사 간격이 끝나지 않았다면 중단
 		return;
 	}
 
 	if (bIsReloading)
 	{
-		// 재장전 도중 사격하면 재장전을 먼저 취소
+		// 사격 시 진행 중인 재장전 취소
 		CancelReload();
 	}
 
 	if (CurrentAmmo <= 0)
 	{
-		// 실린더가 비어 있으면 자동으로 재장전 시도
+		// 탄약이 없으면 재장전 시도
 		StartReload();
 		return;
 	}
 
-	// 실린더에서 한 발 소모
-	--CurrentAmmo;
-
-	// 변경된 탄약 정보를 UI에 전달
-	BroadcastAmmoChanged();
-
-	// 카메라 중앙을 기준으로 명중 판정 실행
-	PerformHitScan();
-
-	// 사격 후 카메라에 강한 반동 적용
-	ApplyRecoil();
-
-	// 실제 사격 성공을 애니메이션과 효과에 전달
-	OnWeaponFired.Broadcast();
-
-	// 다음 발사까지 사격 불가능 상태로 변경
+	// 이벤트 처리 중 중복 사격 방지
 	bCanFire = false;
 
-	// 발사 간격이 끝나면 다시 사격할 수 있도록 타이머 실행
+	// 탄약 한 발 소모
+	--CurrentAmmo;
+	BroadcastAmmoChanged();
+
+	// 명중 판정 및 반동 처리
+	PerformHitScan();
+	ApplyRecoil();
+
+	// 사격 애니메이션과 효과에 전달
+	OnWeaponFired.Broadcast();
+
+	// 발사 간격 이후 사격 가능 상태로 복구
 	GetWorld()->GetTimerManager().SetTimer(
 		FireCooldownTimerHandle,
 		this,
 		&UPlayerCombatComponent::ResetFireCooldown,
-		FireInterval,
+		FMath::Max(FireInterval, 0.01f),
 		false
 	);
 }
@@ -88,50 +106,49 @@ void UPlayerCombatComponent::StartReload()
 {
 	if (bIsReloading)
 	{
-		// 이미 재장전 중이면 중복 실행하지 않음
+		// 이미 재장전 중이라면 중단
 		return;
 	}
 
 	if (CurrentAmmo >= CylinderCapacity)
 	{
-		// 실린더가 가득 차 있으면 재장전하지 않음
+		// 실린더가 가득 찼다면 중단
 		return;
 	}
 
 	if (ReserveAmmo <= 0)
 	{
-		// 예비 탄약이 없으면 재장전하지 않음
+		// 예비 탄약이 없다면 중단
 		return;
 	}
 
-	// 한 발씩 재장전하는 상태로 변경
+	// 재장전 상태 시작
 	bIsReloading = true;
 
-	// 재장전 시작 상태를 UI와 애니메이션에 전달
-	OnReloadStateChanged.Broadcast(true);
-
-	// 설정된 시간이 지나면 총알 한 발 장전
+	// 한 발 장전 타이머 시작
 	GetWorld()->GetTimerManager().SetTimer(
 		ReloadTimerHandle,
 		this,
 		&UPlayerCombatComponent::HandleReloadRound,
-		ReloadTimePerRound * CurrentReloadTimeMultiplier,
+		FMath::Max(
+			ReloadTimePerRound * CurrentReloadTimeMultiplier,
+			0.01f
+		),
 		false
 	);
+
+	// UI와 애니메이션에 시작 전달
+	OnReloadStateChanged.Broadcast(true);
 }
 
 void UPlayerCombatComponent::CancelReload()
 {
 	if (!bIsReloading)
 	{
-		// 재장전 중이 아니라면 취소하지 않음
 		return;
 	}
 
-	// 진행 중인 한 발 장전 타이머 제거
-	GetWorld()->GetTimerManager().ClearTimer(ReloadTimerHandle);
-
-	// 재장전 상태를 종료
+	// 타이머와 재장전 상태 정리
 	FinishReload();
 }
 
@@ -139,48 +156,48 @@ int32 UPlayerCombatComponent::AddReserveAmmo(int32 AmmoAmount)
 {
 	if (AmmoAmount <= 0)
 	{
-		// 보급량이 0 이하라면 탄약을 추가하지 않음
+		// 유효하지 않은 보급량은 무시
 		return 0;
 	}
 
-	// 탄약 추가 전 예비 탄약 수 저장
-	const int32 PreviousReserveAmmo = ReserveAmmo;
-
-	// 예비 탄약이 최대치를 넘지 않도록 제한
-	ReserveAmmo = FMath::Clamp(
-		ReserveAmmo + AmmoAmount,
-		0,
-		MaxReserveAmmo
+	// 예비 탄약의 남은 공간 계산
+	const int32 AvailableSpace = FMath::Max(
+		MaxReserveAmmo - ReserveAmmo,
+		0
 	);
 
-	// 실제로 추가된 탄약 수 계산
-	const int32 AddedAmmo = ReserveAmmo - PreviousReserveAmmo;
+	// 실제 추가할 수 있는 탄약 계산
+	const int32 AddedAmmo = FMath::Min(
+		AmmoAmount,
+		AvailableSpace
+	);
 
 	if (AddedAmmo > 0)
 	{
-		// 실제로 탄약이 추가됐을 때만 UI에 전달
+		ReserveAmmo += AddedAmmo;
+
+		// 실제 추가됐을 때만 UI에 전달
 		BroadcastAmmoChanged();
 	}
 
-	// 보급 아이템이 습득 성공 여부를 판단하도록 반환
 	return AddedAmmo;
 }
 
 int32 UPlayerCombatComponent::GetCurrentAmmo() const
 {
-	// UI에서 사용할 현재 실린더 탄약 수 반환
+	// 현재 장전된 탄약 반환
 	return CurrentAmmo;
 }
 
 int32 UPlayerCombatComponent::GetReserveAmmo() const
 {
-	// UI에서 사용할 현재 예비 탄약 수 반환
+	// 현재 예비 탄약 반환
 	return ReserveAmmo;
 }
 
 int32 UPlayerCombatComponent::GetCylinderCapacity() const
 {
-	// UI에서 사용할 최대 실린더 탄약 수 반환
+	// 실린더 최대 탄약 수 반환
 	return CylinderCapacity;
 }
 
@@ -207,26 +224,56 @@ void UPlayerCombatComponent::SetUltimateBuffActive(
 
 void UPlayerCombatComponent::PerformHitScan()
 {
-	// 전투 컴포넌트를 소유한 플레이어 확인
+	// 명중 여부와 관계없이 함수 실행 확인
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("SHOT_CHECK: PerformHitScan called")
+	);
+
+	// 컴포넌트를 소유한 플레이어 확인
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 
 	if (OwnerPawn == nullptr)
 	{
-		// 소유자가 Pawn이 아니면 사격 판정 중단
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: Stopped - Owner is not Pawn")
+		);
+
 		return;
 	}
 
-	// 현재 플레이어를 조종하는 컨트롤러 확인
+	// 플레이어 컨트롤러 확인
 	APlayerController* PlayerController =
 		Cast<APlayerController>(OwnerPawn->GetController());
 
 	if (PlayerController == nullptr)
 	{
-		// 플레이어 컨트롤러가 없으면 사격 판정 중단
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: Stopped - PlayerController missing")
+		);
+
 		return;
 	}
 
-	// 플레이어 카메라의 위치와 회전 가져오기
+	UWorld* World = GetWorld();
+
+	if (World == nullptr)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: Stopped - World missing")
+		);
+
+		return;
+	}
+
+	// 카메라 위치와 회전 조회
 	FVector ViewLocation;
 	FRotator ViewRotation;
 
@@ -235,18 +282,20 @@ void UPlayerCombatComponent::PerformHitScan()
 		ViewRotation
 	);
 
-	// 카메라가 바라보는 방향으로 사격 종료 위치 계산
+	// 카메라 전방을 기준으로 사격 방향 계산
+	const FVector ShotDirection = ViewRotation.Vector();
+
 	const FVector TraceEnd =
-		ViewLocation + ViewRotation.Vector() * TraceDistance;
+		ViewLocation + ShotDirection * TraceDistance;
 
-	// 자기 자신이 사격 판정에 걸리지 않도록 제외
+	// 자기 자신은 명중 대상에서 제외
 	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(GetOwner());
+	QueryParams.AddIgnoredActor(OwnerPawn);
 
-	// 보스 담당자가 만든 전용 피격 채널로 직선 명중 판정 실행
+	// 보스 전용 피격 채널로 명중 검사
 	FHitResult HitResult;
 
-	const bool bHit = GetWorld()->LineTraceSingleByChannel(
+	const bool bHit = World->LineTraceSingleByChannel(
 		HitResult,
 		ViewLocation,
 		TraceEnd,
@@ -254,15 +303,25 @@ void UPlayerCombatComponent::PerformHitScan()
 		QueryParams
 	);
 
-	// 실제 판정이 끝나는 위치 결정
+	// 빗나간 경우에도 검사 결과 출력
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("SHOT_CHECK: Hit=%d | Actor=%s | Component=%s"),
+		bHit ? 1 : 0,
+		*GetNameSafe(HitResult.GetActor()),
+		*GetNameSafe(HitResult.GetComponent())
+	);
+
+	// 디버그 선의 끝 위치 결정
 	const FVector DebugTraceEnd =
 		bHit ? HitResult.ImpactPoint : TraceEnd;
 
 	if (bDrawDebugTrace)
 	{
-		// 명중 시 빨간색, 빗나가면 초록색 선 표시
+		// 명중은 빨간색, 빗나감은 초록색
 		DrawDebugLine(
-			GetWorld(),
+			World,
 			ViewLocation,
 			DebugTraceEnd,
 			bHit ? FColor::Red : FColor::Green,
@@ -275,23 +334,41 @@ void UPlayerCombatComponent::PerformHitScan()
 
 	if (!bHit)
 	{
-		// 적이나 지형에 명중하지 않았다면 피해 없음
 		return;
 	}
 
 	AActor* HitActor = HitResult.GetActor();
 
-	if (HitActor == nullptr)
+	if (!IsValid(HitActor))
 	{
-		// 명중한 액터가 없다면 피해 적용 중단
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: Stopped - HitActor invalid")
+		);
+
 		return;
 	}
 
-	// 실제 총알이 진행한 방향 계산
-	const FVector ShotDirection =
-		(DebugTraceEnd - ViewLocation).GetSafeNormal();
+	// 실제 명중한 액터와 클래스 확인
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("SHOT_CHECK: Shot Hit=%s | Class=%s"),
+		*GetNameSafe(HitActor),
+		*GetNameSafe(HitActor->GetClass())
+	);
 
-	// 명중한 액터에 기본 공격력 20의 점 피해 적용
+	// 피해로 과녁이 파괴되기 전에 스택 먼저 처리
+	HandleUltimateTargetHit(HitActor);
+
+	if (!IsValid(HitActor))
+	{
+		// 스택 이벤트 처리 중 액터가 파괴됐다면 중단
+		return;
+	}
+
+	// 궁극기 배율을 반영한 피해 적용
 	UGameplayStatics::ApplyPointDamage(
 		HitActor,
 		BaseDamage * CurrentDamageMultiplier,
@@ -303,43 +380,173 @@ void UPlayerCombatComponent::PerformHitScan()
 	);
 }
 
+void UPlayerCombatComponent::HandleUltimateTargetHit(
+	AActor* HitActor
+)
+{
+	if (!IsValid(HitActor))
+	{
+		return;
+	}
+
+	if (!HitActor->IsA<ABossBerserkActor>())
+	{
+		// 명중 대상이 과녁 클래스가 아닌 경우 확인
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: Not ultimate target | Actor=%s | Class=%s"),
+			*GetNameSafe(HitActor),
+			*GetNameSafe(HitActor->GetClass())
+		);
+
+		return;
+	}
+
+	// 파괴된 과녁의 기록 제거
+	for (
+		auto TargetIterator = HitUltimateTargets.CreateIterator();
+		TargetIterator;
+		++TargetIterator
+		)
+	{
+		if (!TargetIterator->IsValid())
+		{
+			TargetIterator.RemoveCurrent();
+		}
+	}
+
+	const TWeakObjectPtr<AActor> TargetActor(HitActor);
+
+	if (HitUltimateTargets.Contains(TargetActor))
+	{
+		// 같은 과녁에서 중복 스택 획득 방지
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: Target already counted | Actor=%s"),
+			*GetNameSafe(HitActor)
+		);
+
+		return;
+	}
+
+	AActor* OwnerActor = GetOwner();
+
+	if (!IsValid(OwnerActor))
+	{
+		return;
+	}
+
+	// 실제 사격한 플레이어의 스킬 컴포넌트 조회
+	UPlayerSkillComponent* SkillComponent =
+		OwnerActor->FindComponentByClass<UPlayerSkillComponent>();
+
+	if (!IsValid(SkillComponent))
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: PlayerSkillComponent missing | Owner=%s"),
+			*GetNameSafe(OwnerActor)
+		);
+
+		return;
+	}
+
+	// 현재 스킬 상태와 이벤트 바인딩 여부 확인
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("SHOT_CHECK: Skill=%s | Stacks=%d/%d | Active=%d | EventBound=%d"),
+		*SkillComponent->GetPathName(),
+		SkillComponent->GetCurrentTargetStacks(),
+		SkillComponent->GetRequiredTargetStacks(),
+		SkillComponent->IsUltimateActive() ? 1 : 0,
+		SkillComponent->OnUltimateTargetStackChanged.IsBound() ? 1 : 0
+	);
+
+	if (SkillComponent->IsUltimateActive())
+	{
+		// 궁극기 사용 중에는 스택 획득 불가
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: Stack rejected - Ultimate active")
+		);
+
+		return;
+	}
+
+	if (
+		SkillComponent->GetCurrentTargetStacks() >=
+		SkillComponent->GetRequiredTargetStacks()
+		)
+	{
+		// 이미 최대 스택이라면 중단
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("SHOT_CHECK: Stack rejected - Stacks full")
+		);
+
+		return;
+	}
+
+	// 증가 전 스택 저장
+	const int32 PreviousStacks =
+		SkillComponent->GetCurrentTargetStacks();
+
+	// 이벤트 처리 중 중복 호출되지 않도록 먼저 기록
+	HitUltimateTargets.Add(TargetActor);
+
+	// 스택 증가와 UI 이벤트 실행
+	SkillComponent->AddUltimateTargetStack();
+
+	// 호출 전후 스택 확인
+	UE_LOG(
+		LogTemp,
+		Warning,
+		TEXT("SHOT_CHECK: AddUltimateTargetStack called | Before=%d | After=%d"),
+		PreviousStacks,
+		SkillComponent->GetCurrentTargetStacks()
+	);
+}
+
 void UPlayerCombatComponent::ApplyRecoil()
 {
-	// 전투 컴포넌트를 소유한 플레이어 확인
+	// 컴포넌트를 소유한 플레이어 확인
 	APawn* OwnerPawn = Cast<APawn>(GetOwner());
 
 	if (OwnerPawn == nullptr)
 	{
-		// 소유자가 Pawn이 아니면 반동 적용 중단
 		return;
 	}
 
-	// 현재 플레이어의 컨트롤러 확인
+	// 플레이어 컨트롤러 확인
 	APlayerController* PlayerController =
 		Cast<APlayerController>(OwnerPawn->GetController());
 
 	if (PlayerController == nullptr)
 	{
-		// 플레이어 컨트롤러가 없으면 반동 적용 중단
 		return;
 	}
 
-	// 카메라를 위쪽으로 올리는 강한 수직 반동 적용
+	// 수직 반동 적용
 	PlayerController->AddPitchInput(-VerticalRecoil);
 
-	// 매 발 좌우 방향이 달라지는 무작위 반동 계산
+	// 좌우 무작위 반동 적용
 	const float RandomHorizontalRecoil = FMath::FRandRange(
 		-HorizontalRecoil,
 		HorizontalRecoil
 	);
 
-	// 계산된 좌우 반동을 카메라에 적용
 	PlayerController->AddYawInput(RandomHorizontalRecoil);
 }
 
 void UPlayerCombatComponent::ResetFireCooldown()
 {
-	// 발사 간격이 끝났으므로 다시 사격 가능
+	// 발사 간격 종료
 	bCanFire = true;
 }
 
@@ -347,13 +554,12 @@ void UPlayerCombatComponent::HandleReloadRound()
 {
 	if (!bIsReloading)
 	{
-		// 재장전이 취소됐다면 총알을 추가하지 않음
+		// 취소된 재장전은 처리하지 않음
 		return;
 	}
 
 	if (CurrentAmmo >= CylinderCapacity || ReserveAmmo <= 0)
 	{
-		// 실린더가 가득 찼거나 예비 탄약이 없으면 종료
 		FinishReload();
 		return;
 	}
@@ -362,22 +568,30 @@ void UPlayerCombatComponent::HandleReloadRound()
 	++CurrentAmmo;
 	--ReserveAmmo;
 
-	// 변경된 탄약 정보를 UI에 전달
+	// 변경된 탄약 전달
 	BroadcastAmmoChanged();
+
+	if (!bIsReloading)
+	{
+		// 이벤트 처리 중 재장전이 취소됐다면 중단
+		return;
+	}
 
 	if (CurrentAmmo >= CylinderCapacity || ReserveAmmo <= 0)
 	{
-		// 더 장전할 수 없다면 재장전 종료
 		FinishReload();
 		return;
 	}
 
-	// 다음 한 발을 장전하기 위한 타이머 실행
+	// 다음 한 발 장전 예약
 	GetWorld()->GetTimerManager().SetTimer(
 		ReloadTimerHandle,
 		this,
 		&UPlayerCombatComponent::HandleReloadRound,
-		ReloadTimePerRound * CurrentReloadTimeMultiplier,
+		FMath::Max(
+			ReloadTimePerRound * CurrentReloadTimeMultiplier,
+			0.01f
+		),
 		false
 	);
 }
@@ -386,19 +600,24 @@ void UPlayerCombatComponent::FinishReload()
 {
 	if (!bIsReloading)
 	{
-		// 이미 재장전이 종료됐다면 중복 처리하지 않음
 		return;
 	}
 
-	// 재장전 상태 종료
-	bIsReloading = false;
+	// 남아 있는 장전 타이머 제거
+	GetWorld()->GetTimerManager().ClearTimer(
+		ReloadTimerHandle
+	);
 
-	// UI와 애니메이션에 재장전 종료 전달
+	// 재장전 종료 상태 전달
+	bIsReloading = false;
 	OnReloadStateChanged.Broadcast(false);
 }
 
 void UPlayerCombatComponent::BroadcastAmmoChanged()
 {
-	// 현재 실린더와 예비 탄약 수를 UI에 전달
-	OnAmmoChanged.Broadcast(CurrentAmmo, ReserveAmmo);
+	// 현재 탄약과 예비 탄약 전달
+	OnAmmoChanged.Broadcast(
+		CurrentAmmo,
+		ReserveAmmo
+	);
 }

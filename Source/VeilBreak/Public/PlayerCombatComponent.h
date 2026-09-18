@@ -50,15 +50,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	void CancelReload();
 
-	// 보급 아이템으로 예비 탄약을 추가하고 실제 추가량 반환
+	// 예비 탄약을 추가하고 실제 추가량 반환
 	UFUNCTION(BlueprintCallable, Category = "Combat")
 	int32 AddReserveAmmo(int32 AmmoAmount);
 
-	// 현재 실린더에 장전된 탄약 반환
+	// 현재 장전된 탄약 반환
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	int32 GetCurrentAmmo() const;
 
-	// 현재 보유 중인 예비 탄약 반환
+	// 현재 예비 탄약 반환
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	int32 GetReserveAmmo() const;
 
@@ -70,7 +70,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Combat")
 	bool IsReloading() const;
 
-	// 궁극기 활성 상태에 따라 공격력과 재장전 속도 변경
+	// 궁극기 상태에 따라 공격력과 재장전 속도 변경
 	UFUNCTION(BlueprintCallable, Category = "Combat|Ultimate")
 	void SetUltimateBuffActive(bool bEnableUltimateBuff);
 
@@ -88,55 +88,54 @@ public:
 	FOnWeaponFired OnWeaponFired;
 
 protected:
-	// Unreal Override
+	// 게임 시작 시 상태 초기화
 	virtual void BeginPlay() override;
 
 private:
-	// 카메라 중앙에서 직선 판정을 실행해 적에게 피해 적용
+	// 카메라 중앙에서 명중 판정 후 피해 적용
 	void PerformHitScan();
 
-	// 사격 시 카메라에 강한 반동 적용
+	// 보스 과녁 명중 시 중복 여부를 확인하고 스택 추가
+	void HandleUltimateTargetHit(AActor* HitActor);
+
+	// 사격 반동 적용
 	void ApplyRecoil();
 
-	// 발사 간격이 끝난 후 다시 사격 가능 상태로 변경
+	// 발사 간격 종료
 	void ResetFireCooldown();
 
-	// 재장전 시간이 끝날 때 실린더에 한 발 추가
+	// 실린더에 한 발 장전
 	void HandleReloadRound();
 
-	// 진행 중인 재장전 정상 종료
+	// 재장전 종료
 	void FinishReload();
 
 	// 변경된 탄약 정보를 UI에 전달
 	void BroadcastAmmoChanged();
 
 private:
-	// 탄약 설정
-
-	// 실린더에 들어갈 수 있는 최대 탄약 수
+	// 실린더의 최대 탄약 수
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Ammo")
 	int32 CylinderCapacity = 6;
 
-	// 현재 실린더에 장전된 탄약 수
+	// 현재 장전된 탄약 수
 	UPROPERTY(VisibleInstanceOnly, Category = "Combat|Ammo")
 	int32 CurrentAmmo = 6;
 
-	// 플레이어가 보유할 수 있는 최대 예비 탄약 수
+	// 최대 예비 탄약 수
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Ammo")
 	int32 MaxReserveAmmo = 24;
 
-	// 현재 플레이어가 보유한 예비 탄약 수
+	// 현재 예비 탄약 수
 	UPROPERTY(VisibleInstanceOnly, Category = "Combat|Ammo")
 	int32 ReserveAmmo = 24;
 
 private:
-	// 무기 설정
-
 	// 리볼버 한 발의 기본 공격력
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Weapon")
 	float BaseDamage = 20.0f;
 
-	// 한 번 발사한 후 다음 발사까지 필요한 시간
+	// 다음 발사까지 필요한 시간
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Weapon")
 	float FireInterval = 0.4f;
 
@@ -144,54 +143,53 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Weapon")
 	float TraceDistance = 10000.0f;
 
-	// 총알 한 발을 실린더에 넣는 데 필요한 시간
+	// 총알 한 발을 장전하는 시간
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Reload")
 	float ReloadTimePerRound = 0.69f;
 
 private:
-	// 궁극기 설정
-
-	// 궁극기 중 기본 공격력에 적용되는 배율
+	// 궁극기 공격력 배율
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Ultimate")
 	float UltimateDamageMultiplier = 2.0f;
 
-	// 궁극기 중 재장전 시간에 적용되는 배율
+	// 궁극기 재장전 시간 배율
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Ultimate")
 	float UltimateReloadTimeMultiplier = 0.5f;
 
-	// 현재 기본 공격력에 적용되는 배율
+	// 현재 적용 중인 공격력 배율
 	float CurrentDamageMultiplier = 1.0f;
 
-	// 현재 한 발 재장전 시간에 적용되는 배율
+	// 현재 적용 중인 재장전 시간 배율
 	float CurrentReloadTimeMultiplier = 1.0f;
 
 private:
-	// 반동 설정
-
-	// 사격 시 위쪽으로 적용되는 반동 크기
+	// 위쪽 반동 크기
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Recoil")
 	float VerticalRecoil = 5.0f;
 
-	// 사격 시 좌우로 무작위 적용되는 최대 반동 크기
+	// 좌우 무작위 반동의 최대 크기
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Recoil")
 	float HorizontalRecoil = 1.2f;
 
-	// 테스트용 사격 경로를 화면에 표시할지 설정
+	// 테스트용 사격 경로 표시 여부
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Debug")
 	bool bDrawDebugTrace = true;
 
 private:
-	// 전투 상태
-
-	// 현재 총을 다시 발사할 수 있는지 저장
+	// 현재 사격 가능 여부
 	bool bCanFire = true;
 
-	// 현재 한 발씩 재장전하고 있는지 저장
+	// 현재 재장전 상태
 	bool bIsReloading = false;
 
-	// 발사 간격을 관리하는 타이머
+	// 이미 스택 획득을 처리한 과녁을 저장
+	// 약한 참조를 사용하므로 과녁의 파괴를 막지 않음
+	TSet<TWeakObjectPtr<AActor>> HitUltimateTargets;
+
+
+	// 발사 간격 관리
 	FTimerHandle FireCooldownTimerHandle;
 
-	// 한 발씩 진행되는 재장전을 관리하는 타이머
+	// 한 발씩 진행되는 재장전 관리
 	FTimerHandle ReloadTimerHandle;
 };
