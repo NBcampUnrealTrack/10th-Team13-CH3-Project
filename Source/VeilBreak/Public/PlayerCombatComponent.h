@@ -134,7 +134,7 @@ private:
 
 	// 리볼버 한 발의 기본 공격력
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Weapon")
-	float BaseDamage = 200.0f;
+	float BaseDamage = 20.0f;
 
 	// 한 번 발사한 후 다음 발사까지 필요한 시간
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Weapon")

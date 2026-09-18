@@ -1,6 +1,5 @@
 #include "PlayerSkillComponent.h"
 
-#include "Engine/Engine.h"
 #include "Engine/World.h"
 
 UPlayerSkillComponent::UPlayerSkillComponent()
@@ -34,7 +33,7 @@ void UPlayerSkillComponent::AddUltimateTargetStack()
 {
 	if (bIsUltimateActive)
 	{
-		// 궁극기 활성화 중에는 새로운 스택을 획득하지 않음
+		// 궁극기 활성화 중에는 스택을 획득하지 않음
 		return;
 	}
 
@@ -62,44 +61,35 @@ bool UPlayerSkillComponent::ActivateUltimate()
 {
 	if (!CanActivateUltimate())
 	{
-		// 조건 미충족 또는 이미 활성화된 상태라면 사용 실패
+		// 활성화 중이거나 5스택을 채우지 못했다면 사용 실패
 		return false;
 	}
 
 	// 궁극기 활성 상태로 변경
 	bIsUltimateActive = true;
 
-	if (bRequireTargetStacks)
-	{
-		// 실제 과녁 시스템을 사용할 때만 누적 스택 소모
-		CurrentTargetStacks = 0;
+	// 궁극기를 사용하면 누적 스택 전부 소모
+	CurrentTargetStacks = 0;
 
-		// 변경된 스택을 UI에 전달
-		BroadcastTargetStackChanged();
-	}
+	// UI에 0스택으로 초기화된 상태 전달
+	BroadcastTargetStackChanged();
 
-	// 외부 시스템에 궁극기 시작 전달
+	// 공격력, 재장전, 이동속도와 스태미나 효과에 시작 전달
 	OnUltimateStateChanged.Broadcast(true);
-
-	if (GEngine != nullptr)
-	{
-		// 과녁 연결 전 E 입력과 활성화를 확인하는 테스트 메시지
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			2.0f,
-			FColor::Cyan,
-			TEXT("Ultimate Started - 8 Seconds")
-		);
-	}
 
 	if (UltimateDuration <= 0.0f)
 	{
-		// 지속시간이 0이라면 즉시 궁극기 종료
+		// 지속시간이 0이라면 즉시 종료
 		FinishUltimate();
 		return true;
 	}
 
-	// 설정된 지속시간 후 궁극기 상태 종료
+	// 기존 궁극기 타이머가 남아 있다면 제거
+	GetWorld()->GetTimerManager().ClearTimer(
+		UltimateDurationTimerHandle
+	);
+
+	// 설정된 지속시간 이후 궁극기 종료
 	GetWorld()->GetTimerManager().SetTimer(
 		UltimateDurationTimerHandle,
 		this,
@@ -108,7 +98,6 @@ bool UPlayerSkillComponent::ActivateUltimate()
 		false
 	);
 
-	// 궁극기 사용 성공 반환
 	return true;
 }
 
@@ -128,17 +117,11 @@ bool UPlayerSkillComponent::CanActivateUltimate() const
 {
 	if (bIsUltimateActive)
 	{
-		// 이미 활성화됐다면 중복 사용 불가
+		// 궁극기 활성화 중에는 다시 사용할 수 없음
 		return false;
 	}
 
-	if (!bRequireTargetStacks)
-	{
-		// 테스트 모드에서는 과녁 스택 없이 즉시 사용 가능
-		return true;
-	}
-
-	// 실제 게임에서는 필요한 과녁 스택을 채워야 사용 가능
+	// 필요한 과녁 스택을 모두 채워야 사용 가능
 	return CurrentTargetStacks >= RequiredTargetStacks;
 }
 
@@ -150,13 +133,16 @@ bool UPlayerSkillComponent::IsUltimateActive() const
 
 float UPlayerSkillComponent::GetUltimateRemainingTime() const
 {
-	if (!bIsUltimateActive || GetWorld() == nullptr)
+	if (
+		!bIsUltimateActive ||
+		GetWorld() == nullptr
+		)
 	{
 		// 궁극기가 꺼져 있거나 월드가 없다면 남은 시간 없음
 		return 0.0f;
 	}
 
-	// 현재 궁극기 타이머의 남은 시간 반환
+	// 궁극기 타이머에 저장된 남은 시간 반환
 	return FMath::Max(
 		GetWorld()->GetTimerManager().GetTimerRemaining(
 			UltimateDurationTimerHandle
@@ -173,22 +159,16 @@ void UPlayerSkillComponent::FinishUltimate()
 		return;
 	}
 
+	// 궁극기 지속시간 타이머 정리
+	GetWorld()->GetTimerManager().ClearTimer(
+		UltimateDurationTimerHandle
+	);
+
 	// 궁극기 비활성 상태로 변경
 	bIsUltimateActive = false;
 
-	// 외부 시스템에 궁극기 종료 전달
+	// 공격력, 재장전, 이동속도와 스태미나 효과에 종료 전달
 	OnUltimateStateChanged.Broadcast(false);
-
-	if (GEngine != nullptr)
-	{
-		// 8초 지속시간이 끝났는지 확인하는 테스트 메시지
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			2.0f,
-			FColor::White,
-			TEXT("Ultimate Finished")
-		);
-	}
 }
 
 void UPlayerSkillComponent::BroadcastTargetStackChanged()

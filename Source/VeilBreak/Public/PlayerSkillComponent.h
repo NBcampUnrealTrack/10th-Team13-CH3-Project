@@ -5,7 +5,7 @@
 #include "TimerManager.h"
 #include "PlayerSkillComponent.generated.h"
 
-// 과녁 스택이 변경됐을 때 UI에 현재 스택을 전달
+// 과녁 스택이 변경됐을 때 UI에 현재 스택 전달
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnUltimateTargetStackChanged,
 	int32,
@@ -35,11 +35,11 @@ public:
 	UPlayerSkillComponent();
 
 public:
-	// 보스 패턴의 과녁을 맞혔을 때 궁극기 스택 1 증가
+	// 보스 과녁을 맞혔을 때 궁극기 스택 1 증가
 	UFUNCTION(BlueprintCallable, Category = "Skill|Ultimate")
 	void AddUltimateTargetStack();
 
-	// 사용 조건을 만족하면 8초 동안 궁극기 활성화
+	// 필요한 스택을 모두 채웠다면 궁극기 활성화
 	UFUNCTION(BlueprintCallable, Category = "Skill|Ultimate")
 	bool ActivateUltimate();
 
@@ -64,7 +64,7 @@ public:
 	float GetUltimateRemainingTime() const;
 
 public:
-	// 과녁 스택이 변경됐을 때 호출
+	// 과녁 스택 획득 또는 소모 시 호출
 	UPROPERTY(BlueprintAssignable, Category = "Skill|Ultimate")
 	FOnUltimateTargetStackChanged OnUltimateTargetStackChanged;
 
@@ -93,10 +93,6 @@ private:
 	// 궁극기 강화 효과가 유지되는 시간
 	UPROPERTY(EditDefaultsOnly, Category = "Skill|Ultimate")
 	float UltimateDuration = 8.0f;
-
-	// 과녁 연결 전에는 false로 두어 E 스킬을 즉시 테스트
-	UPROPERTY(EditDefaultsOnly, Category = "Skill|Ultimate")
-	bool bRequireTargetStacks = false;
 
 private:
 	// 궁극기 상태
