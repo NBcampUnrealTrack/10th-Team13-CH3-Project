@@ -14,6 +14,7 @@
 #include "Engine/Engine.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
+#include "Sound/SoundBase.h"
 #include "TimerManager.h"
 
 #include "Animation/AnimSequence.h"
@@ -44,6 +45,24 @@ ABossCharacterBase::ABossCharacterBase()
 	// 마법 시전용 Cast 모션
 	static ConstructorHelpers::FObjectFinder<UAnimSequence> CastAnimation(
 		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Cast.Cast"));
+	// 체력 0 도달 시 재생할 Sevarog 정면 사망 모션
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> DeathAnimation(
+		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Animations/Death_front.Death_front"));
+	// 사망 시 재생할 Sevarog 보이스 Cue
+	static ConstructorHelpers::FObjectFinder<USoundBase> DeathVoiceCue(
+		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Sounds/SoundCues/Sevarog_Effort_Death.Sevarog_Effort_Death"));
+	// 마법공격 시작 시 재생할 Sevarog Q 능력 보이스 Cue
+	static ConstructorHelpers::FObjectFinder<USoundBase> MagicAttackVoiceCue(
+		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Sounds/SoundCues/Sevarog_Effort_Ability_Q.Sevarog_Effort_Ability_Q"));
+	// 낙석 시작 시 재생할 Sevarog 궁극기 보이스 Cue
+	static ConstructorHelpers::FObjectFinder<USoundBase> FallingRockVoiceCue(
+		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Sounds/SoundCues/Sevarog_Effort_Ability_Ultimate.Sevarog_Effort_Ability_Ultimate"));
+	// 소용돌이 시작 시 재생할 Sevarog E 능력 보이스 Cue
+	static ConstructorHelpers::FObjectFinder<USoundBase> VortexVoiceCue(
+		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Sounds/SoundCues/Sevarog_Effort_Ability_E.Sevarog_Effort_Ability_E"));
+	// 발악 시작 시 재생할 Sevarog 위기 보이스 Cue
+	static ConstructorHelpers::FObjectFinder<USoundBase> BerserkVoiceCue(
+		TEXT("/Game/ParagonSevarog/Characters/Heroes/Sevarog/Sounds/SoundCues/Sevarog_Health_Critical.Sevarog_Health_Critical"));
 	// Fire 투사체 상속 BP
 	static ConstructorHelpers::FClassFinder<ABossMagicAttackActor> MagicBlueprint(
 		TEXT("/Game/Boss/Patterns/BP_BossMagicAttack"));
@@ -66,6 +85,12 @@ ABossCharacterBase::ABossCharacterBase()
 	static ConstructorHelpers::FObjectFinder<UParticleSystem> FallingRockWarning(
 		TEXT("/Game/ParagonSevarog/FX/Particles/Abilities/SoulSiphon/FX/P_SiphonTargeting.P_SiphonTargeting"));
 	if (CastAnimation.Succeeded()) CastMotion = CastAnimation.Object;
+	if (DeathAnimation.Succeeded()) DeathMotion = DeathAnimation.Object;
+	if (DeathVoiceCue.Succeeded()) DeathVoice = DeathVoiceCue.Object;
+	if (MagicAttackVoiceCue.Succeeded()) MagicAttackVoice = MagicAttackVoiceCue.Object;
+	if (FallingRockVoiceCue.Succeeded()) FallingRockVoice = FallingRockVoiceCue.Object;
+	if (VortexVoiceCue.Succeeded()) VortexVoice = VortexVoiceCue.Object;
+	if (BerserkVoiceCue.Succeeded()) BerserkVoice = BerserkVoiceCue.Object;
 	MagicAttackClass = MagicBlueprint.Succeeded() ? MagicBlueprint.Class.Get() : ABossMagicAttackActor::StaticClass();
 	FallingRockClass = FallingRockBlueprint.Succeeded() ? FallingRockBlueprint.Class.Get() : ABossFallingRockActor::StaticClass();
 	if (UltimateSwingAnimation.Succeeded()) FallingRockMotion = UltimateSwingAnimation.Object;
@@ -125,6 +150,8 @@ void ABossCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 	GetCharacterMovement()->MaxWalkSpeed = FMath::Max(0.f, BossMovementSpeed);
+	// 체력 컴포넌트 사망 이벤트를 캐릭터 연출과 AI 정지 처리에 연결
+	if (BossStatComponent) BossStatComponent->OnBossDied.AddUniqueDynamic(this, &ABossCharacterBase::HandleBossDied);
 }
 
 // Player 0의 실제 키 입력 상태에서 숫자 0 Pressed 감지
@@ -176,6 +203,8 @@ bool ABossCharacterBase::StartFallingRock(const FVector& Target)
 	const FVector ToTarget = FallingRockTarget - GetActorLocation();
 	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.f, ToTarget.Rotation().Yaw, 0.f));
 	bFallingRockRunning = true;
+	// 낙석 시전 시작 보이스 1회 재생
+	if (FallingRockVoice) UGameplayStatics::PlaySoundAtLocation(this, FallingRockVoice, GetActorLocation());
 	GetMesh()->PlayAnimation(FallingRockMotion, false);
 	GetWorldTimerManager().SetTimer(FallingRockWarningTimer, this, &ABossCharacterBase::ShowFallingRockWarning, FallingRockWarningDelay, false);
 	GetWorldTimerManager().SetTimer(FallingRockReleaseTimer, this, &ABossCharacterBase::ReleaseFallingRock, FMath::Clamp(FallingRockReleaseDelay, 0.01f, Duration * 0.95f), false);
@@ -213,6 +242,52 @@ float ABossCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 	return AppliedDamage;
 }
 
+// 진행 중 행동을 종료하고 이동·BT 정지 후 사망 모션 한 번 재생
+void ABossCharacterBase::HandleBossDied()
+{
+	// 사망 이후 예약된 패턴 생성과 Idle 복귀 차단
+	GetWorldTimerManager().ClearTimer(MagicReleaseTimer);
+	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
+	GetWorldTimerManager().ClearTimer(FallingRockReleaseTimer);
+	GetWorldTimerManager().ClearTimer(FallingRockFinishTimer);
+	GetWorldTimerManager().ClearTimer(FallingRockWarningTimer);
+	GetWorldTimerManager().ClearTimer(FallingRockWarningClearTimer);
+	GetWorldTimerManager().ClearTimer(BerserkTimeoutTimer);
+	GetWorldTimerManager().ClearTimer(VortexFinishTimer);
+	GetWorldTimerManager().ClearTimer(VortexSpawnTimer);
+	GetWorldTimerManager().ClearTimer(VortexCastFinishTimer);
+
+	// 패턴 실행 상태와 잔여 패턴 액터 정리
+	bMagicAttackRunning = false;
+	bMagicAttackLaunched = false;
+	bFallingRockRunning = false;
+	bBerserkRunning = false;
+	bVortexRunning = false;
+	bVortexCasting = false;
+	PendingVortexTarget.Reset();
+	if (ActiveVortex.IsValid()) ActiveVortex->Destroy();
+	ActiveVortex.Reset();
+	for (const TWeakObjectPtr<ABossBerserkActor>& Orb : ActiveBerserkOrbs)
+	{
+		if (Orb.IsValid()) Orb->Destroy();
+	}
+	ActiveBerserkOrbs.Reset();
+	RemainingBerserkOrbs = 0;
+	ClearFallingRockWarning();
+
+	// CharacterMovement와 AIController의 이동·Behavior Tree 실행 정지
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+	if (ABossAIController* BossController = Cast<ABossAIController>(GetController()))
+	{
+		BossController->StopBossBehavior();
+	}
+
+	// 액터를 유지한 채 사망 모션 한 번 재생, 실제 디스폰은 GameMode 담당
+	if (DeathVoice) UGameplayStatics::PlaySoundAtLocation(this, DeathVoice, GetActorLocation());
+	if (DeathMotion) GetMesh()->PlayAnimation(DeathMotion, false);
+}
+
 // Cast 시작과 발사 예약, 애니메이션 상태와 독립된 타이머로 시전 종료 보장
 bool ABossCharacterBase::StartMagicAttack(const FVector& Target)
 {
@@ -226,6 +301,8 @@ bool ABossCharacterBase::StartMagicAttack(const FVector& Target)
 	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.0f, ToTarget.Rotation().Yaw, 0.0f));
 	bMagicAttackRunning = true;
 	bMagicAttackLaunched = false;
+	// 마법공격 시전 시작 보이스 1회 재생
+	if (MagicAttackVoice) UGameplayStatics::PlaySoundAtLocation(this, MagicAttackVoice, GetActorLocation());
 	GetMesh()->PlayAnimation(CastMotion, false);
 	GetWorldTimerManager().SetTimer(MagicReleaseTimer, this, &ABossCharacterBase::ReleaseMagicAttack, FMath::Clamp(MagicReleaseDelay, 0.01f, Duration * 0.95f), false);
 	GetWorldTimerManager().SetTimer(MagicFinishTimer, this, &ABossCharacterBase::FinishMagicAttack, Duration, false);
@@ -330,6 +407,8 @@ bool ABossCharacterBase::StartBerserk(AActor* TargetActor)
 	bBerserkRunning = true;
 	NextBerserkAvailableTime = GetWorld()->GetTimeSeconds() + BerserkCooldown;
 	BossStatComponent->SetInvulnerable(true);
+	// 발악 시작 보이스 1회 재생
+	if (BerserkVoice) UGameplayStatics::PlaySoundAtLocation(this, BerserkVoice, GetActorLocation());
 	const FVector ToTarget = TargetActor->GetActorLocation() - GetActorLocation();
 	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.f, ToTarget.Rotation().Yaw, 0.f));
 	GetMesh()->PlayAnimation(BerserkMotion, true);
@@ -409,6 +488,8 @@ bool ABossCharacterBase::StartVortex(AActor* TargetActor)
 	bVortexRunning = true;
 	bVortexCasting = true;
 	NextVortexAvailableTime = GetWorld()->GetTimeSeconds() + VortexCooldown;
+	// 소용돌이 시전 시작 보이스 1회 재생
+	if (VortexVoice) UGameplayStatics::PlaySoundAtLocation(this, VortexVoice, GetActorLocation());
 	const FVector ToTarget = TargetActor->GetActorLocation() - GetActorLocation();
 	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.f, ToTarget.Rotation().Yaw, 0.f));
 	GetMesh()->PlayAnimation(CastMotion, false);
@@ -471,6 +552,7 @@ void ABossCharacterBase::FinishVortex()
 // 종료 시 예약된 마법 시전 타이머 해제
 void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (BossStatComponent) BossStatComponent->OnBossDied.RemoveDynamic(this, &ABossCharacterBase::HandleBossDied);
 	GetWorldTimerManager().ClearTimer(MagicReleaseTimer);
 	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockReleaseTimer);

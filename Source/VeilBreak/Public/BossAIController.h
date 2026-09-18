@@ -11,6 +11,8 @@ class VEILBREAK_API ABossAIController : public AAIController
 public:
     // BT_BossMain 기본 에셋 지정
     ABossAIController();
+    // 보스 사망 시 이동과 Behavior Tree 실행 정지
+    void StopBossBehavior();
 protected:
     // 보스 소유 시 BB 초기화 후 BT 반복 실행
     virtual void OnPossess(APawn* InPawn) override;
