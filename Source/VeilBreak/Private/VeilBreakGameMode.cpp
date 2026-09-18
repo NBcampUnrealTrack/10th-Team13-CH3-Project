@@ -12,6 +12,7 @@
 #include "Engine/TargetPoint.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "AmmoSpawnVolume.h"
 
 AVeilBreakGameMode::AVeilBreakGameMode()
 {
@@ -83,6 +84,59 @@ void AVeilBreakGameMode::RestartPlayer(AController* NewPlayer)
 	}
 }
 
+void AVeilBreakGameMode::SpawnAmmoForArea(FName AreaTag)
+{
+	TArray<AActor*> FoundVolumes;
+
+	UGameplayStatics::GetAllActorsOfClassWithTag(
+		this,
+		AAmmoSpawnVolume::StaticClass(),
+		AreaTag,
+		FoundVolumes
+	);
+
+	if (FoundVolumes.IsEmpty())
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[AmmoSpawn] 구역 볼륨 없음: %s"),
+			*AreaTag.ToString()
+		);
+		return;
+	}
+
+	for (AActor* Actor : FoundVolumes)
+	{
+		AAmmoSpawnVolume* Volume = Cast<AAmmoSpawnVolume>(Actor);
+
+		if (IsValid(Volume))
+		{
+			Volume->SpawnAmmo();
+		}
+	}
+}
+
+void AVeilBreakGameMode::ClearAllSpawnedAmmo()
+{
+	TArray<AActor*> FoundVolumes;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		this,
+		AAmmoSpawnVolume::StaticClass(),
+		FoundVolumes
+	);
+
+	for (AActor* Actor : FoundVolumes)
+	{
+		AAmmoSpawnVolume* Volume = Cast<AAmmoSpawnVolume>(Actor);
+
+		if (IsValid(Volume))
+		{
+			Volume->ClearSpawnedAmmo();
+		}
+	}
+}
 
 void AVeilBreakGameMode::PrepareBattle()
 {
@@ -136,10 +190,14 @@ void AVeilBreakGameMode::StartBattle()
 		EVeilBreakGameLoopState::Combat
 	);
 
+	SpawnAmmoForArea(FName(TEXT("AmmoSpawn_Phase1")));
+
 	UE_LOG(LogTemp, Log, TEXT("황금돼지 전투 시작"));
 
 	// BP_GameMode에 전투 시작 사실 전달
 	OnBattleStarted();
+
+
 }
 
 void AVeilBreakGameMode::NotifyBossPhaseChanged(
@@ -227,6 +285,7 @@ void AVeilBreakGameMode::EndBattle(
 	}
 
 	bBattleEnded = true;
+	ClearAllSpawnedAmmo();
 
 	VeilBreakGameState->SetBattleResult(Result);
 
@@ -365,15 +424,25 @@ void AVeilBreakGameMode::MoveActorsToPhaseArea(EBossPhase NewPhase)
 	Boss->GetCharacterMovement()->StopMovementImmediately();
 
 	// 5. 충돌을 확인하며 각 목적지로 이동
+	//플레이어 이동에 성공했는지
 	const bool bPlayerMoved = Player->TeleportTo(
 		PlayerPoints[0]->GetActorLocation(),
 		PlayerPoints[0]->GetActorRotation()
 	);
-
+	//보스 이동에 성공했는지
 	const bool bBossMoved = Boss->TeleportTo(
 		BossPoints[0]->GetActorLocation(),
 		BossPoints[0]->GetActorRotation()
 	);
+
+	if (bPlayerMoved && bBossMoved)
+	{
+		// 이전 구역에 남은 탄약 제거
+		ClearAllSpawnedAmmo();
+
+		// 새 구역에 탄약 생성
+		SpawnAmmoForArea(FName(TEXT("AmmoSpawn_Phase2")));
+	}
 
 	UE_LOG(
 		LogTemp, Log,

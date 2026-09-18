@@ -43,6 +43,12 @@ public:
 	void RestartBattle();
 
 protected:
+	// 지정한 구역의 볼륨에서 탄약 생성
+	void SpawnAmmoForArea(FName AreaTag);
+
+	// 모든 탄약 스폰 볼륨의 생성 아이템 정리
+	void ClearAllSpawnedAmmo();
+
 	// 페이즈에 맞는 구역으로 플레이어와 보스를 이동
 	void MoveActorsToPhaseArea(EBossPhase NewPhase);
 
