@@ -1,0 +1,254 @@
+﻿#include "AmmoSpawnVolume.h"
+
+#include "AmmoItem.h"
+#include "CollisionQueryParams.h"
+#include "CollisionShape.h"
+#include "Components/BoxComponent.h"
+#include "Engine/World.h"
+
+AAmmoSpawnVolume::AAmmoSpawnVolume()
+{
+	PrimaryActorTick.bCanEverTick = false;
+
+	SpawnBox = CreateDefaultSubobject<UBoxComponent>(
+		TEXT("SpawnBox")
+	);
+	SetRootComponent(SpawnBox);
+
+	// 기본 크기: 가로 1000, 세로 1000, 높이 600
+	SpawnBox->InitBoxExtent(FVector(500.0f, 500.0f, 300.0f));
+
+	// 박스 자체는 생성 범위 표시용
+	SpawnBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	SpawnBox->SetGenerateOverlapEvents(false);
+	SpawnBox->SetCanEverAffectNavigation(false);
+}
+
+void AAmmoSpawnVolume::SpawnAmmo()
+{
+	if (bSpawnRequested)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+
+	if (!World || !AmmoItemClass)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[AmmoSpawn] %s: World 또는 AmmoItemClass 없음"),
+			*GetName()
+		);
+		return;
+	}
+
+	bSpawnRequested = true;
+
+	const int32 TargetCount = FMath::Max(SpawnCount, 1);
+	const int32 AttemptsPerItem = FMath::Max(MaxAttemptsPerItem, 1);
+
+	int32 CreatedCount = 0;
+
+	for (int32 ItemIndex = 0; ItemIndex < TargetCount; ++ItemIndex)
+	{
+		for (int32 Attempt = 0; Attempt < AttemptsPerItem; ++Attempt)
+		{
+			FVector SpawnLocation;
+
+			if (!FindSpawnLocation(SpawnLocation))
+			{
+				continue;
+			}
+
+			const FRotator SpawnRotation(
+				0.0f,
+				FMath::FRandRange(0.0f, 360.0f),
+				0.0f
+			);
+
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+
+			// 위치는 위에서 검사했으며, 생성 시 추가 충돌도 확인
+			SpawnParams.SpawnCollisionHandlingOverride =
+				ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
+
+			AAmmoItem* Item = World->SpawnActor<AAmmoItem>(
+				AmmoItemClass,
+				SpawnLocation,
+				SpawnRotation,
+				SpawnParams
+			);
+
+			if (!IsValid(Item))
+			{
+				continue;
+			}
+
+			SpawnedItems.Add(TWeakObjectPtr<AAmmoItem>(Item));
+			++CreatedCount;
+			break;
+		}
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[AmmoSpawn] %s: 목표=%d / 실제 생성=%d"),
+		*GetName(),
+		TargetCount,
+		CreatedCount
+	);
+
+	if (CreatedCount < TargetCount)
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[AmmoSpawn] 바닥 충돌, 박스 위치, 생성 간격 및 확보 공간을 확인하세요.")
+		);
+	}
+}
+
+bool AAmmoSpawnVolume::FindSpawnLocation(
+	FVector& OutLocation
+) const
+{
+	UWorld* World = GetWorld();
+
+	if (!World || !IsValid(SpawnBox))
+	{
+		return false;
+	}
+
+	const FVector Extent = SpawnBox->GetUnscaledBoxExtent();
+	const FTransform BoxTransform = SpawnBox->GetComponentTransform();
+
+	// 박스 내부에서 가로·세로 좌표 선택
+	const float LocalX = FMath::FRandRange(-Extent.X, Extent.X);
+	const float LocalY = FMath::FRandRange(-Extent.Y, Extent.Y);
+
+	// 선택한 위치의 박스 상단에서 하단으로 탐색
+	const FVector TraceStart = BoxTransform.TransformPosition(
+		FVector(LocalX, LocalY, Extent.Z)
+	);
+
+	const FVector TraceEnd = BoxTransform.TransformPosition(
+		FVector(LocalX, LocalY, -Extent.Z)
+	);
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	// 고정된 지형과 구조물을 바닥 후보로 사용
+	FCollisionObjectQueryParams GroundObjects;
+	GroundObjects.AddObjectTypesToQuery(ECC_WorldStatic);
+
+	FHitResult GroundHit;
+
+	const bool bFoundGround = World->LineTraceSingleByObjectType(
+		GroundHit,
+		TraceStart,
+		TraceEnd,
+		GroundObjects,
+		QueryParams
+	);
+
+	if (!bFoundGround || !GroundHit.bBlockingHit)
+	{
+		return false;
+	}
+
+	// 급경사와 벽은 제외
+	const float SafeSlope = FMath::Clamp(
+		MaxGroundSlopeDegrees,
+		0.0f,
+		60.0f
+	);
+
+	const float MinNormalZ = FMath::Cos(
+		FMath::DegreesToRadians(SafeSlope)
+	);
+
+	if (GroundHit.ImpactNormal.Z < MinNormalZ)
+	{
+		return false;
+	}
+
+	const float SafeRadius = FMath::Max(ClearanceRadius, 1.0f);
+	const float SafeGap = FMath::Max(GroundGap, 1.0f);
+
+	// 경사면에서도 바닥과 겹치지 않도록 표면 법선 방향으로 띄움
+	const FVector Candidate =
+		GroundHit.ImpactPoint
+		+ GroundHit.ImpactNormal * (SafeRadius + SafeGap);
+
+	// 최종 위치도 박스 내부인지 확인
+	const FVector LocalCandidate =
+		BoxTransform.InverseTransformPosition(Candidate);
+
+	if (FMath::Abs(LocalCandidate.X) > Extent.X
+		|| FMath::Abs(LocalCandidate.Y) > Extent.Y
+		|| FMath::Abs(LocalCandidate.Z) > Extent.Z)
+	{
+		return false;
+	}
+
+	// 같은 볼륨에서 생성한 아이템과 간격 확보
+	const float SpacingSquared =
+		FMath::Square(FMath::Max(MinSpacing, 0.0f));
+
+	for (const TWeakObjectPtr<AAmmoItem>& ItemReference : SpawnedItems)
+	{
+		const AAmmoItem* Item = ItemReference.Get();
+
+		if (IsValid(Item)
+			&& FVector::DistSquared(
+				Candidate,
+				Item->GetActorLocation()
+			) < SpacingSquared)
+		{
+			return false;
+		}
+	}
+
+	// 주변 지형·물체·캐릭터와 공간이 겹치는지 검사
+	FCollisionObjectQueryParams ObstacleObjects;
+	ObstacleObjects.AddObjectTypesToQuery(ECC_WorldStatic);
+	ObstacleObjects.AddObjectTypesToQuery(ECC_WorldDynamic);
+	ObstacleObjects.AddObjectTypesToQuery(ECC_Pawn);
+
+	const bool bOccupied = World->OverlapAnyTestByObjectType(
+		Candidate,
+		FQuat::Identity,
+		ObstacleObjects,
+		FCollisionShape::MakeSphere(SafeRadius),
+		QueryParams
+	);
+
+	if (bOccupied)
+	{
+		return false;
+	}
+
+	OutLocation = Candidate;
+	return true;
+}
+
+void AAmmoSpawnVolume::ClearSpawnedAmmo()
+{
+	for (const TWeakObjectPtr<AAmmoItem>& ItemReference : SpawnedItems)
+	{
+		AAmmoItem* Item = ItemReference.Get();
+
+		if (IsValid(Item))
+		{
+			Item->Destroy();
+		}
+	}
+
+	SpawnedItems.Empty();
+	bSpawnRequested = false;
+}
