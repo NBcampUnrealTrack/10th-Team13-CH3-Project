@@ -16,6 +16,13 @@ ABossAIController::ABossAIController()
     if (Tree.Succeeded()) BTAsset = Tree.Object;
 }
 
+// 보스 사망 시 이동 요청과 Behavior Tree 실행 즉시 정지
+void ABossAIController::StopBossBehavior()
+{
+    StopMovement();
+    if (BrainComponent) BrainComponent->StopLogic(TEXT("Boss died"));
+}
+
 // Blackboard 초기화 후 BT의 Wait → 패턴 선택 반복 시작
 void ABossAIController::OnPossess(APawn* InPawn)
 {
@@ -50,7 +57,7 @@ void ABossAIController::OnPossess(APawn* InPawn)
 // 소유 해제 시 진행 중 트리 종료
 void ABossAIController::OnUnPossess()
 {
-    if (BrainComponent) BrainComponent->StopLogic(TEXT("Boss unpossessed"));
+    StopBossBehavior();
     Super::OnUnPossess();
 }
 

@@ -78,6 +78,24 @@ protected:
 	// Sevarog Cast 모션
 	UPROPERTY()
 	TObjectPtr<class UAnimSequence> CastMotion;
+	// 체력 0 도달 시 한 번 재생할 Sevarog 사망 모션
+	UPROPERTY()
+	TObjectPtr<class UAnimSequence> DeathMotion;
+	// 사망 시 재생할 Sevarog 보이스
+	UPROPERTY()
+	TObjectPtr<class USoundBase> DeathVoice;
+	// 마법공격 시작 시 재생할 Sevarog 보이스
+	UPROPERTY()
+	TObjectPtr<class USoundBase> MagicAttackVoice;
+	// 낙석 시작 시 재생할 Sevarog 보이스
+	UPROPERTY()
+	TObjectPtr<class USoundBase> FallingRockVoice;
+	// 소용돌이 시작 시 재생할 Sevarog 보이스
+	UPROPERTY()
+	TObjectPtr<class USoundBase> VortexVoice;
+	// 발악 시작 시 재생할 Sevarog 보이스
+	UPROPERTY()
+	TObjectPtr<class USoundBase> BerserkVoice;
 	// 생성할 마법 투사체 BP 클래스
 	UPROPERTY()
 	TSubclassOf<class ABossMagicAttackActor> MagicAttackClass;
@@ -274,4 +292,7 @@ private:
 	void SpawnVortex();
 	// Cast 모션 종료 후 Idle 반복 재생 복귀
 	void FinishVortexCast();
+	// 체력 0 이벤트 처리, 패턴 중단·이동 및 BT 정지·사망 모션 재생
+	UFUNCTION()
+	void HandleBossDied();
 };
