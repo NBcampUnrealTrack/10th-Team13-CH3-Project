@@ -23,6 +23,17 @@ void ABossAIController::StopBossBehavior()
     if (BrainComponent) BrainComponent->StopLogic(TEXT("Boss died"));
 }
 
+// 디버그 부활 후 기존 Behavior Tree 실행 상태 초기화·재시작
+void ABossAIController::RestartBossBehavior()
+{
+    if (BrainComponent)
+    {
+        BrainComponent->RestartLogic();
+        return;
+    }
+    if (BTAsset) RunBehaviorTree(BTAsset);
+}
+
 // Blackboard 초기화 후 BT의 Wait → 패턴 선택 반복 시작
 void ABossAIController::OnPossess(APawn* InPawn)
 {

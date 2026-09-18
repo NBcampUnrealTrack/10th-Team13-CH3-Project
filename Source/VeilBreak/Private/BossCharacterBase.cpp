@@ -84,6 +84,9 @@ ABossCharacterBase::ABossCharacterBase()
 	// 낙석 위험 지점 표시용 Sevarog 지속 타기팅 이펙트
 	static ConstructorHelpers::FObjectFinder<UParticleSystem> FallingRockWarning(
 		TEXT("/Game/ParagonSevarog/FX/Particles/Abilities/SoulSiphon/FX/P_SiphonTargeting.P_SiphonTargeting"));
+	// 사망 모션 종료 후 보스가 사라질 때 재생할 Sevarog 영혼 폭발 이펙트
+	static ConstructorHelpers::FObjectFinder<UParticleSystem> DeathDisappearParticle(
+		TEXT("/Game/ParagonSevarog/FX/Particles/Abilities/SoulStackPassive/FX/P_SoulStageEmbersBurst.P_SoulStageEmbersBurst"));
 	if (CastAnimation.Succeeded()) CastMotion = CastAnimation.Object;
 	if (DeathAnimation.Succeeded()) DeathMotion = DeathAnimation.Object;
 	if (DeathVoiceCue.Succeeded()) DeathVoice = DeathVoiceCue.Object;
@@ -98,6 +101,7 @@ ABossCharacterBase::ABossCharacterBase()
 	BerserkOrbClass = BerserkOrbBlueprint.Succeeded() ? BerserkOrbBlueprint.Class.Get() : ABossBerserkActor::StaticClass();
 	VortexClass = VortexBlueprint.Succeeded() ? VortexBlueprint.Class.Get() : ABossVortexActor::StaticClass();
 	if (FallingRockWarning.Succeeded()) FallingRockWarningEffect = FallingRockWarning.Object;
+	if (DeathDisappearParticle.Succeeded()) DeathDisappearEffect = DeathDisappearParticle.Object;
 	// 피격용 Physics Asset
 	static ConstructorHelpers::FObjectFinder<UPhysicsAsset> BossPhysicsAsset(
 		TEXT("/Game/Boss/Physics/PA_BossSevarog_ShadowCyl.PA_BossSevarog_ShadowCyl"));
@@ -167,16 +171,19 @@ void ABossCharacterBase::Tick(float DeltaSeconds)
 	if (bDebugKeyPressed) CycleDebugHealthPhase();
 }
 
-// Phase1 2000·Phase2 1000·Phase3 400 체력 순환 적용
+// Phase1 최대 체력·Phase2 50%·Phase3 40 체력 순환 적용, 사망 상태면 함께 부활
 void ABossCharacterBase::CycleDebugHealthPhase()
 {
 	if (!BossStatComponent) return;
-	// 각 페이즈 내부에 확실히 포함되는 대표 체력 비율
-	constexpr float DebugHealthPercents[] = { 1.f, 0.5f, 0.2f };
+	// 디버그 체력 적용 전 사망 상태
+	const bool bWasDead = BossStatComponent->IsDead();
+	// Phase1·Phase2는 최대 체력 비율, Phase3는 요청된 고정 체력 40 사용
+	const float DebugHealthValues[] = { BossStatComponent->GetMaxHealth(), BossStatComponent->GetMaxHealth() * 0.5f, 40.f };
 	// 현재 순번에 대응하는 디버그 체력
-	const float DebugHealth = BossStatComponent->GetMaxHealth() * DebugHealthPercents[DebugPhaseIndex];
+	const float DebugHealth = DebugHealthValues[DebugPhaseIndex];
 	BossStatComponent->SetHealthForDebug(DebugHealth);
-	DebugPhaseIndex = (DebugPhaseIndex + 1) % UE_ARRAY_COUNT(DebugHealthPercents);
+	if (bWasDead && !BossStatComponent->IsDead()) ReviveBossForDebug();
+	DebugPhaseIndex = (DebugPhaseIndex + 1) % UE_ARRAY_COUNT(DebugHealthValues);
 	// 화면에 표시할 현재 페이즈 번호
 	const int32 PhaseNumber = static_cast<int32>(BossStatComponent->GetCurrentPhase()) + 1;
 	if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, FString::Printf(TEXT("Boss Debug - Health: %.0f / %.0f, Phase: %d"), BossStatComponent->GetCurrentHealth(), BossStatComponent->GetMaxHealth(), PhaseNumber));
@@ -283,9 +290,69 @@ void ABossCharacterBase::HandleBossDied()
 		BossController->StopBossBehavior();
 	}
 
-	// 액터를 유지한 채 사망 모션 한 번 재생, 실제 디스폰은 GameMode 담당
+	// 액터를 유지한 채 느려진 사망 모션 한 번 재생, 실제 디스폰은 GameMode 담당
 	if (DeathVoice) UGameplayStatics::PlaySoundAtLocation(this, DeathVoice, GetActorLocation());
-	if (DeathMotion) GetMesh()->PlayAnimation(DeathMotion, false);
+	// 사망 모션의 실제 재생시간, PlayRate 감소분 반영
+	const float SafeDeathPlayRate = FMath::Max(DeathAnimationPlayRate, 0.01f);
+	const float DeathPresentationDuration = DeathMotion ? DeathMotion->GetPlayLength() / SafeDeathPlayRate : 1.f;
+	if (DeathMotion)
+	{
+		GetMesh()->PlayAnimation(DeathMotion, false);
+		GetMesh()->SetPlayRate(SafeDeathPlayRate);
+	}
+	GetWorldTimerManager().SetTimer(DeathDisappearTimer, this, &ABossCharacterBase::FinishBossDeathPresentation, DeathPresentationDuration, false);
+}
+
+// 영혼 폭발 이펙트 생성 후 보스를 화면과 충돌에서 제외
+void ABossCharacterBase::FinishBossDeathPresentation()
+{
+	if (DeathDisappearEffect && GetWorld())
+	{
+		// 중심 1개와 주변 방향에 배치할 이펙트 개수
+		const int32 SafeEffectCount = FMath::Max(1, DeathDisappearEffectCount);
+		for (int32 EffectIndex = 0; EffectIndex < SafeEffectCount; ++EffectIndex)
+		{
+			// 첫 이펙트는 몸 중심, 나머지는 원형으로 균등 배치
+			const bool bIsCenterEffect = EffectIndex == 0;
+			// 주변 이펙트의 수평 배치 각도
+			const float AngleDegrees = bIsCenterEffect ? 0.f : 360.f * static_cast<float>(EffectIndex - 1) / static_cast<float>(SafeEffectCount - 1);
+			// 각도를 위치 계산용 라디안으로 변환
+			const float AngleRadians = FMath::DegreesToRadians(AngleDegrees);
+			// 보스의 상체와 주변을 함께 덮도록 높이를 번갈아 적용
+			const float HeightOffset = bIsCenterEffect ? 120.f : 70.f + static_cast<float>(EffectIndex % 2) * 100.f;
+			// 중심 또는 보스 주변 원형 배치 오프셋
+			const FVector EffectOffset = bIsCenterEffect
+				? FVector(0.f, 0.f, HeightOffset)
+				: FVector(FMath::Cos(AngleRadians) * DeathDisappearEffectRadius, FMath::Sin(AngleRadians) * DeathDisappearEffectRadius, HeightOffset);
+			// 방사형으로 퍼져 보이도록 각 이펙트에 서로 다른 회전 적용
+			const FRotator EffectRotation(bIsCenterEffect ? 0.f : (EffectIndex % 2 == 0 ? 25.f : -25.f), AngleDegrees, AngleDegrees * 0.5f);
+			// 중심 이펙트를 가장 크게, 주변 이펙트는 시야를 가리지 않도록 약간 축소
+			const float InstanceScale = DeathDisappearEffectScale * (bIsCenterEffect ? 1.f : 0.8f);
+			UGameplayStatics::SpawnEmitterAtLocation(
+				GetWorld(), DeathDisappearEffect,
+				FTransform(EffectRotation, GetActorLocation() + EffectOffset, FVector(InstanceScale)),
+				true, EPSCPoolMethod::AutoRelease, true);
+		}
+	}
+	SetActorEnableCollision(false);
+	SetActorHiddenInGame(true);
+}
+
+// 사망 상태에서 숫자 0 입력 시 보스 표시·이동·Idle·Behavior Tree 복구
+void ABossCharacterBase::ReviveBossForDebug()
+{
+	GetWorldTimerManager().ClearTimer(DeathDisappearTimer);
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	if (BossStatComponent) BossStatComponent->SetInvulnerable(false);
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	GetCharacterMovement()->MaxWalkSpeed = FMath::Max(0.f, BossMovementSpeed);
+	GetMesh()->SetPlayRate(1.f);
+	if (IdleMotion) GetMesh()->PlayAnimation(IdleMotion, true);
+	if (ABossAIController* BossController = Cast<ABossAIController>(GetController()))
+	{
+		BossController->RestartBossBehavior();
+	}
 }
 
 // Cast 시작과 발사 예약, 애니메이션 상태와 독립된 타이머로 시전 종료 보장
@@ -553,6 +620,7 @@ void ABossCharacterBase::FinishVortex()
 void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (BossStatComponent) BossStatComponent->OnBossDied.RemoveDynamic(this, &ABossCharacterBase::HandleBossDied);
+	GetWorldTimerManager().ClearTimer(DeathDisappearTimer);
 	GetWorldTimerManager().ClearTimer(MagicReleaseTimer);
 	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockReleaseTimer);

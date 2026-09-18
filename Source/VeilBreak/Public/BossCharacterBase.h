@@ -81,6 +81,21 @@ protected:
 	// 체력 0 도달 시 한 번 재생할 Sevarog 사망 모션
 	UPROPERTY()
 	TObjectPtr<class UAnimSequence> DeathMotion;
+	// 사망 모션 재생 속도, 기본 속도의 40%
+	UPROPERTY()
+	float DeathAnimationPlayRate = 0.4f;
+	// 사망 모션 종료 후 보스를 감추며 재생할 영혼 폭발 이펙트
+	UPROPERTY()
+	TObjectPtr<class UParticleSystem> DeathDisappearEffect;
+	// 사망 이펙트 월드 크기 배율
+	UPROPERTY()
+	float DeathDisappearEffectScale = 4.f;
+	// 중심 포함 사망 이펙트 동시 생성 개수
+	UPROPERTY()
+	int32 DeathDisappearEffectCount = 7;
+	// 중심 외 사망 이펙트의 보스 주변 배치 반경, cm
+	UPROPERTY()
+	float DeathDisappearEffectRadius = 140.f;
 	// 사망 시 재생할 Sevarog 보이스
 	UPROPERTY()
 	TObjectPtr<class USoundBase> DeathVoice;
@@ -266,6 +281,8 @@ private:
 	FTimerHandle FallingRockWarningTimer;
 	// FallingRock 위험 지점 경고 제거 타이머
 	FTimerHandle FallingRockWarningClearTimer;
+	// 사망 모션 종료 후 이펙트와 숨김 처리를 예약하는 타이머
+	FTimerHandle DeathDisappearTimer;
 	// 현재 표시 중인 FallingRock 위험 지점 ParticleSystem 컴포넌트
 	TObjectPtr<class UParticleSystemComponent> FallingRockWarningComponent;
 	// 손 위치에서 목표로 투사체 생성
@@ -295,4 +312,8 @@ private:
 	// 체력 0 이벤트 처리, 패턴 중단·이동 및 BT 정지·사망 모션 재생
 	UFUNCTION()
 	void HandleBossDied();
+	// 사망 이펙트 생성 후 메시·콜리전 숨김, 액터는 GameMode 처리를 위해 유지
+	void FinishBossDeathPresentation();
+	// 숫자 0 디버그용 부활, 사망 연출 취소 후 표시·이동·BT 복구
+	void ReviveBossForDebug();
 };
