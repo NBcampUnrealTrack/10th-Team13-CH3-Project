@@ -1,3 +1,5 @@
+// FPSCharacter.h
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,6 +11,7 @@ class UInputAction;
 class UInputComponent;
 class UInputMappingContext;
 class UPlayerCombatComponent;
+class UPlayerConsumableComponent;
 class UPlayerHealthComponent;
 class UPlayerSkillComponent;
 class UPlayerStaminaComponent;
@@ -26,10 +29,13 @@ public:
 	AFPSCharacter();
 
 protected:
-	// Unreal Override
+	// 게임 시작 시 호출
 	virtual void BeginPlay() override;
+
+	// 매 프레임 호출
 	virtual void Tick(float DeltaTime) override;
 
+	// Enhanced Input 입력 바인딩
 	virtual void SetupPlayerInputComponent(
 		UInputComponent* PlayerInputComponent
 	) override;
@@ -56,9 +62,12 @@ private:
 	// E 입력으로 8초 궁극기 사용 시도
 	void StartUltimate();
 
+	// F 입력으로 체력 물약 사용
+	void UseHealthPotion();
+
 	// 궁극기 상태에 따라 이동, 공격 및 스태미나 효과 적용
 	UFUNCTION()
-	void HandleUltimateStateChanged(bool bIsActive);
+	void HandleUltimateStateChanged(bool bUltimateActive);
 
 	// 스태미나가 충분하면 달리기 시작
 	void StartSprint();
@@ -76,7 +85,7 @@ private:
 	// 우클릭 입력으로 조준 시작
 	void StartAim();
 
-	// 우클릭 해제로 조준 종료
+	// 우클릭 입력 해제로 조준 종료
 	void StopAim();
 
 	// 조준 상태에 따라 카메라 거리와 시야각 변경
@@ -142,6 +151,15 @@ private:
 		meta = (AllowPrivateAccess = "true")
 	)
 	TObjectPtr<UPlayerStaminaComponent> PlayerStaminaComponent;
+
+	// 체력 물약의 개수와 지속 회복을 관리하는 컴포넌트
+	UPROPERTY(
+		VisibleAnywhere,
+		BlueprintReadOnly,
+		Category = "Components",
+		meta = (AllowPrivateAccess = "true")
+	)
+	TObjectPtr<UPlayerConsumableComponent> PlayerConsumableComponent;
 
 	// 넉백과 경직 등의 상태 이상을 관리하는 컴포넌트
 	UPROPERTY(
@@ -255,4 +273,8 @@ private:
 	// R 재장전 입력
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> ReloadAction;
+
+	// F 체력 물약 입력
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> PotionAction;
 };

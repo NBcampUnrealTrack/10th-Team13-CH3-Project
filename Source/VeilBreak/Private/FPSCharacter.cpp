@@ -11,6 +11,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "InputActionValue.h"
 #include "PlayerCombatComponent.h"
+#include "PlayerConsumableComponent.h"
 #include "PlayerHealthComponent.h"
 #include "PlayerSkillComponent.h"
 #include "PlayerStaminaComponent.h"
@@ -64,6 +65,12 @@ AFPSCharacter::AFPSCharacter()
 	PlayerCombatComponent =
 		CreateDefaultSubobject<UPlayerCombatComponent>(
 			TEXT("PlayerCombatComponent")
+		);
+
+	// 체력 물약의 보유량과 지속 회복을 관리할 컴포넌트 생성
+	PlayerConsumableComponent =
+		CreateDefaultSubobject<UPlayerConsumableComponent>(
+			TEXT("PlayerConsumableComponent")
 		);
 
 	// 체력, 피해, 회복 및 사망 상태를 관리할 컴포넌트 생성
@@ -252,6 +259,17 @@ void AFPSCharacter::SetupPlayerInputComponent(
 			ETriggerEvent::Started,
 			this,
 			&AFPSCharacter::StartReload
+		);
+	}
+
+	if (PotionAction != nullptr)
+	{
+		// F를 누른 순간 체력 물약 사용 시도
+		EnhancedInputComponent->BindAction(
+			PotionAction,
+			ETriggerEvent::Started,
+			this,
+			&AFPSCharacter::UseHealthPotion
 		);
 	}
 
@@ -463,6 +481,36 @@ void AFPSCharacter::StartReload()
 
 	// 실린더가 가득 차거나 예비 탄약이 없을 때는 컴포넌트가 거부
 	PlayerCombatComponent->StartReload();
+}
+
+void AFPSCharacter::UseHealthPotion()
+{
+	if (
+		PlayerHealthComponent != nullptr &&
+		PlayerHealthComponent->IsDead()
+		)
+	{
+		// 사망한 상태에서는 체력 물약 사용 불가
+		return;
+	}
+
+	if (
+		StatusEffectReceiverComponent != nullptr &&
+		StatusEffectReceiverComponent->IsCrowdControlled()
+		)
+	{
+		// 경직이나 넉백 등의 CC 상태에서는 물약 사용 불가
+		return;
+	}
+
+	if (PlayerConsumableComponent == nullptr)
+	{
+		// 소모품 컴포넌트가 없다면 물약 사용 불가
+		return;
+	}
+
+	// 보유량과 체력 상태를 확인한 뒤 체력 물약 사용
+	PlayerConsumableComponent->UseHealthPotion();
 }
 
 void AFPSCharacter::StartUltimate()
