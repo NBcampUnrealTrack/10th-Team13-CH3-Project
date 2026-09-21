@@ -165,7 +165,7 @@ private:
 private:
 	// 위쪽 반동 크기
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Recoil")
-	float VerticalRecoil = 5.0f;
+	float VerticalRecoil = 4.0f;
 
 	// 좌우 무작위 반동의 최대 크기
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Recoil")
