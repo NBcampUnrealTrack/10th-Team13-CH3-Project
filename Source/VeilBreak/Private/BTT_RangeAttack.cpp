@@ -1,4 +1,7 @@
+
+
 #include "BTT_RangeAttack.h"
+#include "BossCharacterBase.h"
 #include "GroundSmashAttack.h"
 #include "AIController.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
@@ -16,13 +19,20 @@ EBTNodeResult::Type UBTT_RangeAttack::ExecuteTask(
     UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
     CleanupAttack();
-    AAIController* Controller = OwnerComp.GetAIOwner();
-    ACharacter* Boss = nullptr;
 
-    if (IsValid(Controller))
+    AAIController* Controller = OwnerComp.GetAIOwner();
+
+    ABossCharacterBase* Boss = IsValid(Controller)
+        ? Cast<ABossCharacterBase>(Controller->GetPawn())
+        : nullptr;
+
+    if (!IsValid(Boss) || !AttackClass || Boss->IsPatternRunning())
     {
-        Boss = Cast<ACharacter>(Controller->GetPawn());
+        return EBTNodeResult::Failed;
     }
+
+    ActiveBoss = Boss;
+    Controller->StopMovement();
 
     FActorSpawnParameters Params;
     Params.Owner = Boss;
@@ -36,6 +46,8 @@ EBTNodeResult::Type UBTT_RangeAttack::ExecuteTask(
         CleanupAttack();
         return EBTNodeResult::Failed;
     }
+
+    Boss->BeginGroundSmashPattern();
     return EBTNodeResult::InProgress;
 }
 
@@ -54,7 +66,7 @@ void UBTT_RangeAttack::TickTask(
     공격 중? -> true -> 이번 Tick 종료 -> 다음 Tick에서 재확인
     -> false -> 공격 액터 정리 -> Task 완료
     */
-    CleanupAttack();
+    CleanupAttack(true);
     FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 }
 
@@ -65,12 +77,24 @@ EBTNodeResult::Type UBTT_RangeAttack::AbortTask(//BT가 공격을 중단하면
     return EBTNodeResult::Aborted;
 }
 
-void UBTT_RangeAttack::CleanupAttack()//취소 삭제
+void UBTT_RangeAttack::CleanupAttack(bool StartCooldown)
 {
     if (IsValid(ActiveAttack))
     {
-        if (ActiveAttack->IsAttacking()) ActiveAttack->CancelAttack();
+        if (ActiveAttack->IsAttacking())
+        {
+            ActiveAttack->CancelAttack();
+        }
+
         ActiveAttack->Destroy();
     }
+
     ActiveAttack = nullptr;
+
+    if (IsValid(ActiveBoss))
+    {
+        ActiveBoss->EndGroundSmashPattern(StartCooldown);
+    }
+
+    ActiveBoss = nullptr;
 }

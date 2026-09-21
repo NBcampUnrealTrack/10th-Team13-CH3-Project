@@ -41,8 +41,11 @@ private:
     UPROPERTY()
     TObjectPtr<ACenterProjectile> ActiveAttack;
 
-    void CleanupAttack();//생성한 오브젝트 제거
+    //생성한 오브젝트 제거
+    void CleanupAttack(bool StartCooldown = false);
 
+    UPROPERTY()
+    TObjectPtr<class ABossCharacterBase> ActiveBoss;
 
 
 };

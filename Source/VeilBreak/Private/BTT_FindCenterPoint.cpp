@@ -20,7 +20,8 @@ EBTNodeResult::Type UBTT_FindCenterPoint::ExecuteTask(
         FName(TEXT("BossCenterPoint")),
         CenterPoints
     );
-
+    UE_LOG(LogTemp, Warning, TEXT("Center point count: %d"),
+        CenterPoints.Num());
 
     if (CenterPoints.Num() != 1 || !IsValid(CenterPoints[0]))
     {
@@ -50,7 +51,8 @@ EBTNodeResult::Type UBTT_FindCenterPoint::ExecuteTask(
         Boss->GetActorRotation()
     );
    
-
+    UE_LOG(LogTemp, Warning, TEXT("Teleport success: %d"),
+        Teleported);
     if (Teleported && TeleportEffect)
     {
         UNiagaraFunctionLibrary::SpawnSystemAtLocation(
