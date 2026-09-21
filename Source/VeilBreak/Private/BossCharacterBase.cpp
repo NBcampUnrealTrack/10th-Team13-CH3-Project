@@ -646,15 +646,17 @@ int32 ABossCharacterBase::GetAnimationMotionIndex() const
 	if (bFallingRockRunning) return 2;
 	if (bMagicAttackRunning) return 1;
 	if (bVortexCasting) return 4;
-	
-	
+	if (bGroundSmashAnimating) return 
+		GroundSmashAnimationIndex;
+	if (bCenterProjectileAnimating) return 11;
+
 	return 0;
 }
 
 // 기존 패턴 모션 그대로 실행
 void ABossCharacterBase::PreparePatternAnimation(EBossPattern Pattern)
 {
-	const bool bLegacy = Pattern == EBossPattern::GroundSmash || Pattern == EBossPattern::CenterProjectile || Pattern == EBossPattern::BlackHole;
+	const bool bLegacy = Pattern == EBossPattern::BlackHole;
 	if (bLegacy && !(BossStatComponent && BossStatComponent->IsDead()))
 	{
 		bLegacyPatternAnimation = true;
@@ -673,3 +675,137 @@ void ABossCharacterBase::RestoreBossAnimationBlueprint()
 		GetMesh()->SetAnimationMode(EAnimationMode::AnimationBlueprint);
 	}
 }
+//땅찍기, 중앙난사 패턴--------------------------------------------------
+
+bool ABossCharacterBase::CanStartGroundSmash(
+	AActor* TargetActor
+) const
+{
+	if (!IsValid(TargetActor) ||
+		!GetWorld() ||
+		!BossStatComponent ||
+		BossStatComponent->IsDead() ||
+		IsPatternRunning())
+	{
+		return false;
+	}
+
+	if (BossStatComponent->GetCurrentPhase() != EBossPhase::Phase3)
+	{
+		return false;
+	}
+
+	if (GetWorld()->GetTimeSeconds() < NextGroundSmashAvailableTime)
+	{
+		return false;
+	}
+
+	return FVector::DistSquared(
+		GetActorLocation(),
+		TargetActor->GetActorLocation()
+	) >= FMath::Square(GroundSmashMinDistance);
+}
+
+bool ABossCharacterBase::CanStartCenterProjectile(
+	AActor* TargetActor
+) const
+{
+	UE_LOG(LogTemp, Warning,
+		TEXT("[CenterCheck] Phase=%d Distance=%.0f Limit=%.0f Running=%d Cooldown=%.1f"),
+		BossStatComponent ? static_cast<int32>(BossStatComponent->GetCurrentPhase()) : -1,
+		IsValid(TargetActor) ? GetDistanceTo(TargetActor) : -1.0f,
+		CenterProjectileMaxDistance,
+		IsPatternRunning(),
+		GetWorld() ? FMath::Max(
+			0.0, NextCenterProjectileAvailableTime - GetWorld()->GetTimeSeconds()
+		) : -1.0);
+	if (!IsValid(TargetActor) ||
+		!GetWorld() ||
+		!BossStatComponent ||
+		BossStatComponent->IsDead() ||
+		IsPatternRunning())
+	{
+		return false;
+	}
+
+	if (BossStatComponent->GetCurrentPhase() != EBossPhase::Phase3)
+	{
+		return false;
+	}
+
+	if (GetWorld()->GetTimeSeconds() < NextCenterProjectileAvailableTime)
+	{
+		return false;
+	}
+
+	return FVector::DistSquared(
+		GetActorLocation(),
+		TargetActor->GetActorLocation()
+	) <= FMath::Square(CenterProjectileMaxDistance);
+}
+
+void ABossCharacterBase::BeginGroundSmashPattern()
+{
+	bGroundSmashRunning = true;
+}
+
+void ABossCharacterBase::EndGroundSmashPattern(bool StartCooldown)
+{
+	if (!bGroundSmashRunning)
+	{
+		return;
+	}
+
+	bGroundSmashRunning = false;
+
+	if (StartCooldown && GetWorld())
+	{
+		NextGroundSmashAvailableTime =
+			GetWorld()->GetTimeSeconds() + GroundSmashCooldown;
+	}
+}
+
+void ABossCharacterBase::BeginCenterProjectilePattern()
+{
+	bCenterProjectileRunning = true;
+}
+
+void ABossCharacterBase::EndCenterProjectilePattern(bool StartCooldown)
+{
+	if (!bCenterProjectileRunning)
+	{
+		return;
+	}
+
+	bCenterProjectileRunning = false;
+
+	if (StartCooldown)
+	{
+		if (BossStatComponent &&
+			BossStatComponent->GetCurrentPhase() == EBossPhase::Phase3)
+		{
+			bPhase3OpeningFinished = true;
+		}
+
+		if (GetWorld())
+		{
+			NextCenterProjectileAvailableTime =
+				GetWorld()->GetTimeSeconds() + CenterProjectileCooldown;
+		}
+	}
+}
+
+void ABossCharacterBase::SetGroundSmashAnimating(
+	bool IsAnimating, int MotionIndex)
+{
+	bGroundSmashAnimating = IsAnimating;
+	GroundSmashAnimationIndex = MotionIndex;
+}
+
+void ABossCharacterBase::SetCenterProjectileAnimating(bool IsAnimating)
+{
+	bCenterProjectileAnimating = IsAnimating;
+}
+
+
+//땅찍기, 중앙난사 패턴--------------------------------------------------

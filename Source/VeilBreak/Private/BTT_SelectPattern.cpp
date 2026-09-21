@@ -18,6 +18,29 @@ EBTNodeResult::Type UBTT_SelectPattern::ExecuteTask(UBehaviorTreeComponent& Owne
 	UBossStatComponent* Stat = Boss ? Boss->GetBossStatComponent() : nullptr;
 	UBlackboardComponent* Blackboard = OwnerComp.GetBlackboardComponent();
 	if (!Stat || !Blackboard) return EBTNodeResult::Failed;
+	
+	//3페이즈 처음에 중앙 공격
+	if (Stat->GetCurrentPhase() == EBossPhase::Phase3 &&
+		!Boss->HasFinishedPhase3Opening() &&
+		!Stat->IsDead())
+	{
+		// 다른 패턴이 진행 중이면 아직 선택하지 않음
+		if (Boss->IsPatternRunning())
+		{
+			return EBTNodeResult::Failed;
+		}
+
+		Boss->PreparePatternAnimation(EBossPattern::CenterProjectile);
+
+		Blackboard->SetValueAsInt(
+			TEXT("SelectedPattern"),
+			static_cast<int32>(EBossPattern::CenterProjectile)
+		);
+
+		UE_LOG(LogTemp, Log, TEXT("Phase3 opening: CenterProjectile"));
+
+		return EBTNodeResult::Succeeded;
+	}
 
 	AActor* TargetActor = Cast<AActor>(Blackboard->GetValueAsObject(TEXT("TargetActor")));
 	// 모든 페이즈의 기본 패턴 후보
@@ -29,14 +52,23 @@ EBTNodeResult::Type UBTT_SelectPattern::ExecuteTask(UBehaviorTreeComponent& Owne
 	// Phase2 전용 블랙홀 후보 추가
 	if (Stat->GetCurrentPhase() == EBossPhase::Phase2) Candidates.Add(EBossPattern::BlackHole);
 	// Phase3에서만 땅찍기와 중앙 광역 투사체 후보 추가
-	if (Stat->GetCurrentPhase() == EBossPhase::Phase3)
+	if (Boss->CanStartGroundSmash(TargetActor))
 	{
 		Candidates.Add(EBossPattern::GroundSmash);
+	}
+
+	if (Boss->CanStartCenterProjectile(TargetActor))
+	{
 		Candidates.Add(EBossPattern::CenterProjectile);
 	}
+
 	// 후보 중 하나를 선택해 BT Selector 분기에 전달
 	const EBossPattern SelectedPattern = Candidates[FMath::RandRange(0, Candidates.Num() - 1)];
 	Boss->PreparePatternAnimation(SelectedPattern);
+
+	UE_LOG(LogTemp, Warning, TEXT("Selected Pattern: %d"),
+		static_cast<int32>(SelectedPattern));
+
 	Blackboard->SetValueAsInt(TEXT("SelectedPattern"), static_cast<int32>(SelectedPattern));
 	return EBTNodeResult::Succeeded;
 }
