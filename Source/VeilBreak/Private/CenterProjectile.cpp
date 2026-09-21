@@ -6,12 +6,11 @@
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "TimerManager.h"
-#include "GameFramework/Character.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
-#include "Animation/AnimSingleNodeInstance.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
+#include "BossCharacterBase.h"
+
 
 void ACenterProjectile::FireProjectiles() 
 {
@@ -156,52 +155,36 @@ void ACenterProjectile::EndPlay(
 
     Super::EndPlay(EndPlayReason);
 }
+
 void ACenterProjectile::PlayFireAnimation()
 {
-    ACharacter* Boss = Cast<ACharacter>(GetOwner());
+    ABossCharacterBase* Boss =
+        Cast<ABossCharacterBase>(GetOwner());
 
-    if (!IsValid(Boss) || !FireMotion)
+    if (!IsValid(Boss) || !FireMotion || AnimationPlaying)
     {
         return;
     }
 
-    BossMesh = Boss->GetMesh();
+    const float Duration = FireMotion->GetPlayLength();
 
-    if (!IsValid(BossMesh))
+    if (Duration <= 0.0f)
     {
         return;
-    }
-
-    UAnimSingleNodeInstance* Current =
-        BossMesh->GetSingleNodeInstance();
-
-    if (!Current)
-    {
-        return;
-    }
-
-    if (!AnimationPlaying)
-    {
-        PreviousAnimation = Current->GetCurrentAsset();
-        PreviousLooping = Current->IsLooping();
-        PreviousPlaying = Current->IsPlaying();
-        PreviousPlayRate = Current->GetPlayRate();
-        PreviousTime = Current->GetCurrentTime();
     }
 
     AnimationPlaying = true;
-
-    BossMesh->PlayAnimation(FireMotion, false);
-    BossMesh->SetPlayRate(1.0f);
+    Boss->SetCenterProjectileAnimating(true);
 
     GetWorldTimerManager().SetTimer(
         AnimationTimer,
         this,
         &ACenterProjectile::RestoreAnimation,
-        FireMotion->GetPlayLength(),
+        Duration,
         false
     );
 }
+
 void ACenterProjectile::RestoreAnimation()
 {
     if (!AnimationPlaying)
@@ -210,30 +193,13 @@ void ACenterProjectile::RestoreAnimation()
     }
 
     AnimationPlaying = false;
+    GetWorldTimerManager().ClearTimer(AnimationTimer);
 
-    if (!IsValid(BossMesh))
+    ABossCharacterBase* Boss =
+        Cast<ABossCharacterBase>(GetOwner());
+
+    if (IsValid(Boss))
     {
-        return;
-    }
-
-    UAnimSingleNodeInstance* Current =
-        BossMesh->GetSingleNodeInstance();
-
-    
-    if (!Current || Current->GetCurrentAsset() != FireMotion)
-    {
-        return;
-    }
-
-    BossMesh->PlayAnimation(PreviousAnimation, PreviousLooping);
-    BossMesh->SetPlayRate(PreviousPlayRate);
-    BossMesh->SetPosition(PreviousTime, false);
-
-    UAnimSingleNodeInstance* Restored =
-        BossMesh->GetSingleNodeInstance();
-
-    if (Restored)
-    {
-        Restored->SetPlaying(PreviousPlaying);
+        Boss->SetCenterProjectileAnimating(false);
     }
 }
