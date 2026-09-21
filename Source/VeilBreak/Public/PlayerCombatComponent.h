@@ -5,6 +5,9 @@
 #include "TimerManager.h"
 #include "PlayerCombatComponent.generated.h"
 
+class UNiagaraSystem;
+class USoundBase;
+
 // 탄약 변경 이벤트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnAmmoChanged,
@@ -22,8 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponFired);
 
 // 보스 명중 이벤트
-// DamageAmount는 실제 HP 감소량이 아닌 이번 공격의 데미지
-// HitLocation은 월드 좌표 기준 명중 위치
+// DamageAmount는 실제 HP 감소량이 아닌 공격 데미지
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnBossHitConfirmed,
 	float, DamageAmount,
@@ -87,7 +89,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnReloadStateChanged OnReloadStateChanged;
 
-	// 발사 애니메이션 및 효과 실행
+	// 발사 애니메이션 실행
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnWeaponFired OnWeaponFired;
 
@@ -105,6 +107,15 @@ private:
 
 	// 과녁 명중 시 궁극기 스택 처리
 	void HandleUltimateTargetHit(AActor* HitActor);
+
+	// 총구 소켓에서 발사 이펙트와 사운드 재생
+	void PlayFireEffects();
+
+	// 명중 위치에서 이펙트와 사운드 재생
+	void PlayImpactEffects(
+		const FHitResult& HitResult,
+		bool bHitBoss
+	);
 
 	// 사격 반동 적용
 	void ApplyRecoil();
@@ -156,10 +167,93 @@ private:
 	float ReloadTimePerRound = 0.69f;
 
 private:
-	// 보스 명중 판별에 사용할 클래스
-	// 캐릭터 BP의 전투 컴포넌트에서 BP_BossCharacterBase 지정
+	// 보스 본체 판별에 사용할 BP 클래스
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Hit")
 	TSubclassOf<AActor> BossActorClass;
+
+private:
+	// 캐릭터 메시의 총구 소켓 이름
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
+	FName MuzzleSocketName = TEXT("FX_Gun_Barrel");
+
+	// 총구에서 재생할 나이아가라
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
+	TObjectPtr<UNiagaraSystem> MuzzleEffect;
+
+	// 총구 소켓 기준 이펙트 위치 보정
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
+	FVector MuzzleEffectLocationOffset = FVector::ZeroVector;
+
+	// 총구 소켓 기준 이펙트 회전 보정
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
+	FRotator MuzzleEffectRotationOffset = FRotator::ZeroRotator;
+
+	// 총구 이펙트 크기
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Combat|Effects|Fire",
+		meta = (ClampMin = "0.01")
+	)
+	float MuzzleEffectScale = 1.0f;
+
+	// 실제 발사 성공 시 재생할 소리
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
+	TObjectPtr<USoundBase> FireSound;
+
+	// 발사음 음량 배율
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Combat|Effects|Fire",
+		meta = (ClampMin = "0.0")
+	)
+	float FireSoundVolume = 1.0f;
+
+private:
+	// 벽과 일반 대상에 명중했을 때 사용할 이펙트
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
+	TObjectPtr<UNiagaraSystem> DefaultImpactEffect;
+
+	// 벽과 일반 대상에 명중했을 때 사용할 소리
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
+	TObjectPtr<USoundBase> DefaultImpactSound;
+
+	// 보스 본체에 명중했을 때 사용할 이펙트
+	// 미지정 시 일반 명중 이펙트 사용
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
+	TObjectPtr<UNiagaraSystem> BossImpactEffect;
+
+	// 보스 본체에 명중했을 때 사용할 소리
+	// 미지정 시 일반 명중 소리 사용
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
+	TObjectPtr<USoundBase> BossImpactSound;
+
+	// 명중 이펙트 크기
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Combat|Effects|Impact",
+		meta = (ClampMin = "0.01")
+	)
+	float ImpactEffectScale = 1.0f;
+
+	// 표면 안에 묻히지 않도록 이펙트를 바깥으로 이동할 거리
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Combat|Effects|Impact",
+		meta = (ClampMin = "0.0")
+	)
+	float ImpactEffectSurfaceOffset = 2.0f;
+
+	// 이펙트의 기본 진행 축이 다를 때 회전 보정
+	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
+	FRotator ImpactEffectRotationOffset = FRotator::ZeroRotator;
+
+	// 명중음 음량 배율
+	UPROPERTY(
+		EditDefaultsOnly,
+		Category = "Combat|Effects|Impact",
+		meta = (ClampMin = "0.0")
+	)
+	float ImpactSoundVolume = 1.0f;
 
 private:
 	// 궁극기 공격력 배율
@@ -179,7 +273,7 @@ private:
 private:
 	// 수직 반동
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Recoil")
-	float VerticalRecoil = 4.0f;
+	float VerticalRecoil = 5.0f;
 
 	// 좌우 반동
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Recoil")
@@ -196,7 +290,7 @@ private:
 	// 재장전 여부
 	bool bIsReloading = false;
 
-	// 중복 스택 획득을 방지하기 위한 과녁 기록
+	// 중복 스택 획득 방지용 과녁 기록
 	TSet<TWeakObjectPtr<AActor>> HitUltimateTargets;
 
 	// 발사 간격 타이머
