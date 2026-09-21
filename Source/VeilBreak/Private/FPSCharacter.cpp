@@ -17,6 +17,14 @@
 #include "PlayerStaminaComponent.h"
 #include "StatusEffectReceiverComponent.h"
 #include "TimerManager.h"
+#include "Animation/AnimInstance.h"
+#include "Animation/AnimSequence.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
+#include "Sound/SoundBase.h"
 
 AFPSCharacter::AFPSCharacter()
 {
@@ -96,6 +104,14 @@ AFPSCharacter::AFPSCharacter()
 		CreateDefaultSubobject<UStatusEffectReceiverComponent>(
 			TEXT("StatusEffectReceiverComponent")
 		);
+	// 회복과 궁극기 파티클은 필요할 때만 활성화
+	PotionLoopComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("PotionLoopComponent"));
+	PotionLoopComponent->SetupAttachment(GetCapsuleComponent());
+	PotionLoopComponent->SetAutoActivate(false);
+
+	UltimateLoopComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("UltimateLoopComponent"));
+	UltimateLoopComponent->SetupAttachment(GetCapsuleComponent());
+	UltimateLoopComponent->SetAutoActivate(false);
 }
 
 void AFPSCharacter::BeginPlay()
@@ -134,6 +150,29 @@ void AFPSCharacter::BeginPlay()
 			this,
 			&AFPSCharacter::HandleUltimateStateChanged
 		);
+	}
+
+
+	// 실제 피해 이벤트에만 피격 효과 연결
+	if (PlayerHealthComponent != nullptr)
+	{
+		PlayerHealthComponent->OnDamageReceived.AddUniqueDynamic(
+			this, &AFPSCharacter::HandleDamageReceived
+		);
+	}
+
+	// 물약 입력 성공 여부가 아니라 실제 회복 상태를 구독
+	if (PlayerConsumableComponent != nullptr)
+	{
+		PlayerConsumableComponent->OnHealthPotionStateChanged.AddUniqueDynamic(
+			this, &AFPSCharacter::HandlePotionStateChanged
+		);
+
+		// 이미 회복 중인 상태에서 시작된 경우에도 파티클 동기화
+		if (PlayerConsumableComponent->IsHealingWithPotion())
+		{
+			HandlePotionStateChanged(true);
+		}
 	}
 
 	// 현재 캐릭터를 조종하는 플레이어 컨트롤러 확인
@@ -413,6 +452,10 @@ void AFPSCharacter::Look(
 
 void AFPSCharacter::StartJump()
 {
+	if (bDeathFeedbackPlayed || (PlayerHealthComponent && PlayerHealthComponent->IsDead()))
+	{
+		return;
+	}
 	// ACharacter가 제공하는 기본 점프 실행
 	Jump();
 }
@@ -539,27 +582,54 @@ void AFPSCharacter::StartUltimate()
 		return;
 	}
 
-	// 현재는 과녁 스택 조건 없이 8초 궁극기 활성화
+	// 과녁 스택 조건을 만족하면 궁극기 활성화
 	PlayerSkillComponent->ActivateUltimate();
 }
 
 void AFPSCharacter::HandleUltimateStateChanged(
-	bool bIsActive
+	bool bUltimateActive
 )
 {
+	// 사망 후 타이머 종료 이벤트로 효과가 다시 켜지지 않도록 처리
+	if (bDeathFeedbackPlayed || (PlayerHealthComponent && PlayerHealthComponent->IsDead()))
+	{
+		StopPersistentFeedback();
+		return;
+	}
+
+	if (bUltimateActive)
+	{
+		PlayFeedbackCue(UltimateStartFeedback, GetActorLocation(), GetActorRotation());
+
+		if (UltimateLoopEffect != nullptr && UltimateLoopComponent != nullptr)
+		{
+			UltimateLoopComponent->SetAsset(UltimateLoopEffect.Get());
+			UltimateLoopComponent->SetRelativeLocation(UltimateLoopOffset);
+			UltimateLoopComponent->SetRelativeScale3D(FVector(FMath::Max(UltimateLoopScale, 0.01f)));
+			UltimateLoopComponent->Activate(true);
+		}
+	}
+	else
+	{
+		if (UltimateLoopComponent != nullptr)
+		{
+			UltimateLoopComponent->DeactivateImmediate();
+		}
+		PlayFeedbackCue(UltimateEndFeedback, GetActorLocation(), GetActorRotation());
+	}
 	// 캐릭터가 현재 궁극기 상태인지 저장
-	bIsUltimateActive = bIsActive;
+	bIsUltimateActive = bUltimateActive;
 
 	if (PlayerCombatComponent != nullptr)
 	{
 		// 궁극기 중 공격력 2배와 재장전 시간 절반 적용
-		PlayerCombatComponent->SetUltimateBuffActive(bIsActive);
+		PlayerCombatComponent->SetUltimateBuffActive(bUltimateActive);
 	}
 
 	if (PlayerStaminaComponent != nullptr)
 	{
 		// 궁극기 중 스태미나를 최대치로 유지하고 소모 방지
-		PlayerStaminaComponent->SetInfiniteStamina(bIsActive);
+		PlayerStaminaComponent->SetInfiniteStamina(bUltimateActive);
 	}
 
 	if (bIsUltimateActive)
@@ -614,6 +684,10 @@ void AFPSCharacter::StopSprint()
 
 void AFPSCharacter::StartDash()
 {
+	if (bDeathFeedbackPlayed || (PlayerHealthComponent && PlayerHealthComponent->IsDead()))
+	{
+		return;
+	}
 	if (!bCanDash)
 	{
 		// 대시 재사용 대기시간 중이면 실행하지 않음
@@ -770,12 +844,21 @@ void AFPSCharacter::StartDash()
 
 	// 경사면의 중간 충돌에 막히지 않도록
 	// 계산이 끝난 최종 위치로 즉시 이동
-	SetActorLocation(
+	const bool bDashMoved = SetActorLocation(
 		FinalLocation,
 		false,
 		nullptr,
 		ETeleportType::TeleportPhysics
 	);
+
+
+	// 텔레포트 대시는 이동 후 출발/도착에 각각 단발 효과 재생
+	// 실제 이동이 없는 경우에는 효과를 출력하지 않음
+	if (bDashMoved && FVector::DistSquared(StartLocation, GetActorLocation()) > 1.0f)
+	{
+		PlayFeedbackCue(DashStartFeedback, StartLocation, DashDirection.Rotation());
+		PlayFeedbackCue(DashEndFeedback, GetActorLocation(), DashDirection.Rotation());
+	}
 
 	// 설정한 대기시간 후 다시 대시할 수 있도록 타이머 실행
 	FTimerHandle DashCooldownTimerHandle;
@@ -784,7 +867,7 @@ void AFPSCharacter::StartDash()
 		DashCooldownTimerHandle,
 		this,
 		&AFPSCharacter::ResetDash,
-		DashCooldown,
+		FMath::Max(DashCooldown, 0.01f),
 		false
 	);
 }
@@ -895,6 +978,29 @@ void AFPSCharacter::UpdateAimCamera(
 
 void AFPSCharacter::HandlePlayerDeath()
 {
+	if (bDeathFeedbackPlayed)
+	{
+		return;
+	}
+	bDeathFeedbackPlayed = true;
+
+	// 재장전 종료 이벤트를 먼저 전달해 사망 애니메이션이 취소되지 않게 함
+	if (PlayerCombatComponent != nullptr)
+	{
+		PlayerCombatComponent->CancelReload();
+		PlayerCombatComponent->SetUltimateBuffActive(false);
+	}
+	if (PlayerStaminaComponent != nullptr)
+	{
+		PlayerStaminaComponent->SetInfiniteStamina(false);
+	}
+	bIsUltimateActive = false;
+	StopJumping();
+	StopPersistentFeedback();
+
+	// 사망 사운드와 단발 효과
+	PlayFeedbackCue(DeathFeedback, GetActorLocation(), GetActorRotation());
+
 	// 사망 시 달리기와 스태미나 소모 중단
 	StopSprint();
 
@@ -916,4 +1022,209 @@ void AFPSCharacter::HandlePlayerDeath()
 		// 사망 후 플레이어 입력 비활성화
 		DisableInput(PlayerController);
 	}
+	// 사망 시 기존 몽타주를 정리하고 단발 애니메이션 시퀀스 재생
+	// 단일 노드 재생으로 마지막 자세를 유지
+	if (GetMesh() != nullptr && DeathAnimation != nullptr)
+	{
+		if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+		{
+			AnimInstance->StopAllMontages(0.0f);
+		}
+		GetMesh()->PlayAnimation(DeathAnimation.Get(), false);
+	}
 }
+
+
+// 단발 효과는 월드 위치에 생성하며 수명이 끝나면 자동 제거
+void AFPSCharacter::PlayFeedbackCue(
+	const FPlayerFeedbackCue& Cue,
+	const FVector& Location,
+	const FRotator& Rotation
+)
+{
+	if (GetWorld() == nullptr || GetNetMode() == NM_DedicatedServer)
+	{
+		return;
+	}
+
+	const FVector EffectLocation = Location + Rotation.RotateVector(Cue.LocationOffset);
+	const FRotator EffectRotation =
+		(Rotation.Quaternion() * Cue.RotationOffset.Quaternion()).Rotator();
+
+	if (Cue.Effect != nullptr)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+			this, Cue.Effect.Get(), EffectLocation, EffectRotation,
+			FVector(FMath::Max(Cue.Scale, 0.01f)), true, true
+		);
+	}
+	if (Cue.Sound != nullptr)
+	{
+		UGameplayStatics::PlaySoundAtLocation(
+			this, Cue.Sound.Get(), EffectLocation, FMath::Max(Cue.Volume, 0.0f)
+		);
+	}
+}
+
+FVector AFPSCharacter::GetFeetLocation() const
+{
+	return GetActorLocation() - FVector::UpVector *
+		GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+}
+
+void AFPSCharacter::OnJumped_Implementation()
+{
+	Super::OnJumped_Implementation();
+
+	// 입력만 누른 것이 아니라 실제 점프가 성공했을 때 실행
+	if (!bDeathFeedbackPlayed && (!PlayerHealthComponent || !PlayerHealthComponent->IsDead()))
+	{
+		PlayFeedbackCue(JumpFeedback, GetFeetLocation(), GetActorRotation());
+	}
+}
+
+void AFPSCharacter::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	if (!bDeathFeedbackPlayed && (!PlayerHealthComponent || !PlayerHealthComponent->IsDead()))
+	{
+		PlayFeedbackCue(
+			LandFeedback,
+			Hit.ImpactPoint + Hit.ImpactNormal * 2.0f,
+			GetActorRotation()
+		);
+	}
+}
+
+void AFPSCharacter::PlayFootstepFeedback(FName FootSocketName)
+{
+	// 공중, 정지, 사망 중 발소리 차단
+	if (GetWorld() == nullptr || bDeathFeedbackPlayed ||
+		(PlayerHealthComponent && PlayerHealthComponent->IsDead()) ||
+		!GetCharacterMovement()->IsMovingOnGround() ||
+		GetVelocity().SizeSquared2D() < FMath::Square(FMath::Max(FootstepMinimumSpeed, 0.0f)))
+	{
+		return;
+	}
+
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastFootstepTime < FMath::Max(FootstepMinimumInterval, 0.0f))
+	{
+		return;
+	}
+
+	// 발 본/소켓이 없으면 캡슐 발밑을 기준으로 처리
+	FVector FootLocation = GetFeetLocation();
+	if (GetMesh() && !FootSocketName.IsNone() && GetMesh()->DoesSocketExist(FootSocketName))
+	{
+		FootLocation = GetMesh()->GetSocketLocation(FootSocketName);
+	}
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+	FHitResult GroundHit;
+
+	// 발 아래 실제 지면을 찾아 먼지가 공중에서 나오지 않도록 처리
+	const bool bGroundHit = GetWorld()->LineTraceSingleByChannel(
+		GroundHit,
+		FootLocation + FVector::UpVector * 30.0f,
+		FootLocation - FVector::UpVector * FMath::Max(FootstepTraceDistance, 1.0f),
+		ECC_Visibility,
+		Params
+	);
+
+	if (!bGroundHit || !GetCharacterMovement()->IsWalkable(GroundHit))
+	{
+		return;
+	}
+
+	LastFootstepTime = Now;
+	PlayFeedbackCue(
+		FootstepFeedback,
+		GroundHit.ImpactPoint + GroundHit.ImpactNormal * 2.0f,
+		GetActorRotation()
+	);
+}
+
+void AFPSCharacter::PlayReloadFeedback()
+{
+	// 취소되거나 사망한 재장전에서는 장전음 재생 금지
+	if (bDeathFeedbackPlayed ||
+		(PlayerHealthComponent && PlayerHealthComponent->IsDead()) ||
+		!PlayerCombatComponent || !PlayerCombatComponent->IsReloading() ||
+		ReloadSound == nullptr)
+	{
+		return;
+	}
+
+	FVector SoundLocation = GetActorLocation();
+	if (GetMesh() && GetMesh()->DoesSocketExist(ReloadSoundSocketName))
+	{
+		SoundLocation = GetMesh()->GetSocketLocation(ReloadSoundSocketName);
+	}
+	UGameplayStatics::PlaySoundAtLocation(
+		this, ReloadSound.Get(), SoundLocation, FMath::Max(ReloadSoundVolume, 0.0f)
+	);
+}
+
+void AFPSCharacter::HandleDamageReceived(float DamageAmount)
+{
+	// 치명타격에서는 일반 피격 효과 대신 사망 효과만 재생
+	if (DamageAmount <= 0.0f || GetWorld() == nullptr || bDeathFeedbackPlayed ||
+		(PlayerHealthComponent && PlayerHealthComponent->GetCurrentHealth() <= 0.0f))
+	{
+		return;
+	}
+	const double Now = GetWorld()->GetTimeSeconds();
+	if (Now - LastDamageFeedbackTime < FMath::Max(DamageFeedbackInterval, 0.0f))
+	{
+		return;
+	}
+	LastDamageFeedbackTime = Now;
+
+	// 현재 피해 API에는 피격 좌표가 없어 캐릭터 중심 기준으로 재생
+	PlayFeedbackCue(DamageFeedback, GetActorLocation(), GetActorRotation());
+}
+
+void AFPSCharacter::HandlePotionStateChanged(bool bHealing)
+{
+	if (!bHealing || bDeathFeedbackPlayed ||
+		(PlayerHealthComponent && PlayerHealthComponent->IsDead()))
+	{
+		if (PotionLoopComponent != nullptr)
+		{
+			PotionLoopComponent->DeactivateImmediate();
+		}
+		return;
+	}
+
+	PlayFeedbackCue(PotionStartFeedback, GetActorLocation(), GetActorRotation());
+	if (PotionLoopEffect != nullptr && PotionLoopComponent != nullptr)
+	{
+		PotionLoopComponent->SetAsset(PotionLoopEffect.Get());
+		PotionLoopComponent->SetRelativeLocation(PotionLoopOffset);
+		PotionLoopComponent->SetRelativeScale3D(FVector(FMath::Max(PotionLoopScale, 0.01f)));
+		PotionLoopComponent->Activate(true);
+	}
+}
+
+void AFPSCharacter::StopPersistentFeedback()
+{
+	// 루프 에셋도 확실하게 제거하도록 즉시 비활성화
+	if (PotionLoopComponent != nullptr)
+	{
+		PotionLoopComponent->DeactivateImmediate();
+	}
+	if (UltimateLoopComponent != nullptr)
+	{
+		UltimateLoopComponent->DeactivateImmediate();
+	}
+}
+
+void AFPSCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	StopPersistentFeedback();
+	Super::EndPlay(EndPlayReason);
+}
+
