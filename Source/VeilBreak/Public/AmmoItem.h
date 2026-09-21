@@ -7,6 +7,7 @@
 class USphereComponent;
 class UStaticMeshComponent;
 class UPrimitiveComponent;
+class USoundBase;
 
 UCLASS()
 class VEILBREAK_API AAmmoItem : public AActor
@@ -35,6 +36,10 @@ protected:
 		meta = (ClampMin = "1")
 	)
 	int32 AmmoAmount = 6;
+
+	// 습득 성공 시 한 번 재생
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Ammo Item")
+	TObjectPtr<USoundBase> PickupSound = nullptr;
 
 private:
 	// 이벤트가 중복 발생하더라도 탄약 중복 지급 방지
