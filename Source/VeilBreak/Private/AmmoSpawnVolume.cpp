@@ -110,6 +110,15 @@ void AAmmoSpawnVolume::SpawnAmmo()
 			TEXT("[AmmoSpawn] 바닥 충돌, 박스 위치, 생성 간격 및 확보 공간을 확인하세요.")
 		);
 	}
+
+	// 생성 이후 0.5초마다 남은 아이템 확인
+	GetWorldTimerManager().SetTimer(
+		AmmoCheckTimerHandle,
+		this,
+		&AAmmoSpawnVolume::CheckRemainingAmmo,
+		0.5f,
+		true
+	);
 }
 
 bool AAmmoSpawnVolume::FindSpawnLocation(
@@ -239,6 +248,13 @@ bool AAmmoSpawnVolume::FindSpawnLocation(
 
 void AAmmoSpawnVolume::ClearSpawnedAmmo()
 {
+	// 먼저 재생성 중단
+	bSpawnRequested = false;
+
+	GetWorldTimerManager().ClearTimer(AmmoCheckTimerHandle);
+	GetWorldTimerManager().ClearTimer(AmmoRespawnTimerHandle);
+
+	// 이 볼륨에서 생성한 아이템 제거
 	for (const TWeakObjectPtr<AAmmoItem>& ItemReference : SpawnedItems)
 	{
 		AAmmoItem* Item = ItemReference.Get();
@@ -250,5 +266,94 @@ void AAmmoSpawnVolume::ClearSpawnedAmmo()
 	}
 
 	SpawnedItems.Empty();
+}
+
+void AAmmoSpawnVolume::CheckRemainingAmmo()
+{
+	// 생성이 시작되지 않았거나 정리된 볼륨은 처리하지 않음
+	if (!bSpawnRequested)
+	{
+		return;
+	}
+
+	// 이미 제거된 아이템을 목록에서 제외
+	SpawnedItems.RemoveAll(
+		[](const TWeakObjectPtr<AAmmoItem>& ItemReference)
+		{
+			return !ItemReference.IsValid();
+		}
+	);
+
+	// 하나라도 남아 있으면 재생성하지 않음
+	if (!SpawnedItems.IsEmpty())
+	{
+		return;
+	}
+
+	// 이미 재생성을 예약했다면 중복 예약하지 않음
+	if (GetWorldTimerManager().IsTimerActive(AmmoRespawnTimerHandle))
+	{
+		return;
+	}
+
+	const float SafeDelay = FMath::Max(RespawnDelay, 0.1f);
+
+	GetWorldTimerManager().SetTimer(
+		AmmoRespawnTimerHandle,
+		this,
+		&AAmmoSpawnVolume::RespawnAmmo,
+		SafeDelay,
+		false
+	);
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[AmmoSpawn] %s: 남은 아이템 없음. %.1f초 후 재생성"),
+		*GetName(),
+		SafeDelay
+	);
+}
+
+void AAmmoSpawnVolume::RespawnAmmo()
+{
+	if (!bSpawnRequested)
+	{
+		return;
+	}
+
+	// 재생성 직전에도 남은 아이템 확인
+	SpawnedItems.RemoveAll(
+		[](const TWeakObjectPtr<AAmmoItem>& ItemReference)
+		{
+			return !ItemReference.IsValid();
+		}
+	);
+
+	if (!SpawnedItems.IsEmpty())
+	{
+		return;
+	}
+
+	// 기존 확인 타이머를 정리하고 생성 제한 해제
+	GetWorldTimerManager().ClearTimer(AmmoCheckTimerHandle);
+	GetWorldTimerManager().ClearTimer(AmmoRespawnTimerHandle);
+
 	bSpawnRequested = false;
+
+	// 기존 생성 함수를 재사용
+	// 이 함수 마지막에서 확인 타이머도 다시 시작됨
+	SpawnAmmo();
+}
+
+void AAmmoSpawnVolume::EndPlay(
+	const EEndPlayReason::Type EndPlayReason
+)
+{
+	bSpawnRequested = false;
+
+	GetWorldTimerManager().ClearTimer(AmmoCheckTimerHandle);
+	GetWorldTimerManager().ClearTimer(AmmoRespawnTimerHandle);
+
+	Super::EndPlay(EndPlayReason);
 }
