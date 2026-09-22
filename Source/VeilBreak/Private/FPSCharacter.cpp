@@ -32,13 +32,15 @@ AFPSCharacter::AFPSCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = false;
 
-	// 평상시에는 카메라 회전이 캐릭터에 직접 적용되지 않도록 설정
+	// 캐릭터의 좌우 방향은 항상 카메라 조준 방향을 따름
+	// 위아래와 기울기는 몸 전체에 적용하지 않음
 	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = false;
+	bUseControllerRotationYaw = true;
 	bUseControllerRotationRoll = false;
 
-	// 평상시에는 캐릭터가 이동하는 방향을 바라보도록 설정
-	GetCharacterMovement()->bOrientRotationToMovement = true;
+	// 옆/뒤로 이동할 때 이동 방향으로 몸을 돌리지 않음
+	GetCharacterMovement()->bOrientRotationToMovement = false;
+	GetCharacterMovement()->bUseControllerDesiredRotation = false;
 
 	// 이동 방향이 변경될 때의 캐릭터 회전 속도 설정
 	GetCharacterMovement()->RotationRate = FRotator(
@@ -117,6 +119,13 @@ AFPSCharacter::AFPSCharacter()
 void AFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 기존 BP에 저장된 회전 기본값도 게임 시작 시 새 정책으로 적용
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationYaw = true;
+	bUseControllerRotationRoll = false;
+	GetCharacterMovement()->bOrientRotationToMovement = false;
+	GetCharacterMovement()->bUseControllerDesiredRotation = false;
 
 	// 블루프린트에서 설정한 초기 이동 속도 적용
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
@@ -882,11 +891,7 @@ void AFPSCharacter::StartAim()
 	// 현재 캐릭터를 조준 상태로 변경
 	bIsAiming = true;
 
-	// 조준 중에는 캐릭터가 카메라 좌우 방향을 바라보게 설정
-	bUseControllerRotationYaw = true;
-
-	// 조준 중에는 이동 방향 자동 회전을 비활성화
-	GetCharacterMovement()->bOrientRotationToMovement = false;
+	// 캐릭터 회전은 상시 조준 방향 고정. 우클릭은 카메라만 전환
 
 	// 부드러운 카메라 전환을 위해 Tick 활성화
 	SetActorTickEnabled(true);
@@ -897,11 +902,7 @@ void AFPSCharacter::StopAim()
 	// 현재 캐릭터의 조준 상태 해제
 	bIsAiming = false;
 
-	// 카메라 방향에 따른 캐릭터 회전 해제
-	bUseControllerRotationYaw = false;
-
-	// 다시 이동 방향을 바라보도록 설정
-	GetCharacterMovement()->bOrientRotationToMovement = true;
+	// 우클릭을 떼어도 캐릭터는 계속 카메라 좌우 방향을 바라봄
 
 	// 기본 카메라로 돌아가는 동안 Tick 활성화
 	SetActorTickEnabled(true);
@@ -1227,4 +1228,3 @@ void AFPSCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	StopPersistentFeedback();
 	Super::EndPlay(EndPlayReason);
 }
-
