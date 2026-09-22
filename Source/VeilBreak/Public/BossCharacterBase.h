@@ -150,13 +150,13 @@ protected:
 	float VortexRange = 3100.f;
 	// 소용돌이 범위에서 초당 적용할 피해량
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|Vortex", meta=(ClampMin="0"))
-	float VortexDamage = 1.f;
+	float VortexDamage = 5.f;
 	// 소용돌이 패턴 재사용 대기시간, 초
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|Vortex", meta=(ClampMin="0"))
 	float VortexCooldown = 30.f;
 	// 소용돌이 추적 이동속도, cm/s
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|Vortex", meta=(ClampMin="0"))
-	float VortexSpeed = 300.f;
+	float VortexSpeed = 450.f;
 	// 소용돌이 추적 유지시간, 초
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|Vortex", meta=(ClampMin="0.1"))
 	float VortexDuration = 10.f;
@@ -171,10 +171,10 @@ protected:
 	float MagicAttackRange = 3100.f;
 	// 마법 공격 투사체 직접 충돌 피해량
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|MagicAttack", meta=(ClampMin="0"))
-	float MagicAttackProjectileDamage = 1.f;
+	float MagicAttackProjectileDamage = 0.f;
 	// 마법 공격 도착 원형 범위 피해량
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|MagicAttack", meta=(ClampMin="0"))
-	float MagicAttackExplosiveDamage = 1.f;
+	float MagicAttackExplosiveDamage = 20.f;
 	// 마법 공격 투사체 이동속도, cm/s
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|MagicAttack", meta=(ClampMin="1"))
 	float MagicAttackProjectileSpeed = 1200.f;
@@ -183,7 +183,7 @@ protected:
 	float FallingRockRange = 3100.f;
 	// 낙석 착지 범위 피해량
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|FallingRock", meta=(ClampMin="0"))
-	float FallingRockDamage = 1.f;
+	float FallingRockDamage = 30.f;
 	// 낙석 투사체 이동속도, cm/s
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="PatternSetter|FallingRock", meta=(ClampMin="1"))
 	float FallingRockProjectileSpeed = 1200.f;
