@@ -13,6 +13,7 @@ class VEILBREAK_API AVeilBreakGameState : public AGameState
 public:
 	AVeilBreakGameState();
 
+
 	// 현재 게임 진행 상태
 	UPROPERTY(
 		VisibleAnywhere,
@@ -58,7 +59,7 @@ public:
 		EVeilBreakBattleResult NewResult
 	);
 
-	// 점수 치환은 추후 진행
+	// 점수
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Score")
 	int32 Score;
 
@@ -67,4 +68,31 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Score")
 	void AddScore(int32 Amount);
+
+	// 전투 종료 시 확정되는 경과 시간(초)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Battle Record")
+	float BattleDurationSeconds = 0.0f;
+
+	// 전투 중 실제 소비한 탄환 수
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Battle Record")
+	int32 AmmoSpent = 0;
+
+	// 보스에게 명중한 탄환 수
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Battle Record")
+	int32 BossHitCount = 0;
+
+	// 명중률: 0~100 범위의 백분율
+	UFUNCTION(BlueprintPure, Category = "Battle Record")
+	float GetAccuracyPercent() const
+	{
+		if (AmmoSpent <= 0)
+		{
+			return 0.0f;
+		}
+
+		return static_cast<float>(BossHitCount)
+			/ static_cast<float>(AmmoSpent) * 100.0f;
+	}
+	// 새 전투를 위해 기록과 점수를 초기화
+	void ResetBattleRecord();
 };

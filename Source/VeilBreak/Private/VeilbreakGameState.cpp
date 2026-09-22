@@ -57,3 +57,11 @@ void AVeilBreakGameState::AddScore(int32 Amount)
 {
 	Score += Amount;
 }
+
+void AVeilBreakGameState::ResetBattleRecord()
+{
+	BattleDurationSeconds = 0.0f;
+	AmmoSpent = 0;
+	BossHitCount = 0;
+	Score = 0;
+}
