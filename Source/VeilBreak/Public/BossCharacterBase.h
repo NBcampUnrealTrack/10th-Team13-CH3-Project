@@ -9,6 +9,8 @@ class UBossStatComponent;
 class ABossBerserkActor;
 class ABossVortexActor;
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBossDamageApplied, float, AppliedDamage);
+
 // 보스 캐릭터 공통 부모, Sevarog 메시·idle 반복 재생 기본 설정, BP_BossCharacterBase가 상속
 UCLASS()
 class VEILBREAK_API ABossCharacterBase : public ACharacter
@@ -30,6 +32,9 @@ public:
 	void CycleDebugHealthPhase();
 	// TakeDamage를 BossStatComponent에 전달
 	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	// 실제 체력이 감소했을 때 데미지 텍스트 등에 적용 피해량 전달
+	UPROPERTY(BlueprintAssignable, Category="Boss|Damage")
+	FOnBossDamageApplied OnBossDamageApplied;
 	// 보스 체력 컴포넌트 반환
 	UBossStatComponent* GetBossStatComponent() const { return BossStatComponent; }
 	
