@@ -14,6 +14,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AmmoSpawnVolume.h"
 #include "Engine/World.h"
+#include "PlayerCombatComponent.h"
 
 AVeilBreakGameMode::AVeilBreakGameMode()
 {
@@ -56,6 +57,35 @@ void AVeilBreakGameMode::RestartPlayer(AController* NewPlayer)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("플레이어 Pawn 생성 확인 실패"));
 		return;
+	}
+
+	// 생성된 플레이어의 전투 컴포넌트 검색
+	UPlayerCombatComponent* PlayerCombat =
+		PlayerPawn->FindComponentByClass<UPlayerCombatComponent>();
+
+	if (IsValid(PlayerCombat))
+	{
+		// 실제 탄환 소비 알림 → 사용 탄환 집계
+		PlayerCombat->OnAmmoSpent.AddUniqueDynamic(
+			this,
+			&AVeilBreakGameMode::ReportAmmoSpent
+		);
+
+		// 보스 명중 알림 → 명중 횟수 집계
+		PlayerCombat->OnBossShotLanded.AddUniqueDynamic(
+			this,
+			&AVeilBreakGameMode::ReportBossHit
+		);
+
+		UE_LOG(LogTemp, Log, TEXT("[BattleRecord] 플레이어 이벤트 구독 완료"));
+	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[BattleRecord] PlayerCombatComponent를 찾을 수 없음")
+		);
 	}
 
 	//플레이어의 체력 컴포넌트를 찾음
@@ -496,6 +526,13 @@ void AVeilBreakGameMode::ReportAmmoSpent(int32 Amount)
 	}
 
 	GS->AmmoSpent += Amount;
+
+	UE_LOG(
+		LogTemp, Log,
+		TEXT("[BattleRecord] 탄환 소비: +%d / 누적=%d"),
+		Amount,
+		GS->AmmoSpent
+	);
 }
 
 void AVeilBreakGameMode::ReportBossHit()
@@ -515,4 +552,11 @@ void AVeilBreakGameMode::ReportBossHit()
 	}
 
 	++GS->BossHitCount;
+
+	UE_LOG(
+		LogTemp, Log,
+		TEXT("[BattleRecord] 보스 명중: 누적=%d"),
+		GS->BossHitCount
+	);
+
 }
