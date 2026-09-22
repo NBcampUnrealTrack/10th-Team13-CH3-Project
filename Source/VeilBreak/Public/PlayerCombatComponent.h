@@ -24,7 +24,16 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 // 정상 발사 이벤트
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponFired);
 
-// 보스 명중 이벤트
+// 실제 사격으로 소모한 탄환 수 전달
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnAmmoSpent,
+	int32, Amount
+);
+
+// 보스 본체 명중 시 피해 적용 전에 전달
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBossShotLanded);
+
+// 보스 명중 시 공격 데미지와 명중 위치 전달
 // DamageAmount는 실제 HP 감소량이 아닌 공격 데미지
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnBossHitConfirmed,
@@ -93,7 +102,15 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnWeaponFired OnWeaponFired;
 
-	// 보스 명중 시 히트마커 및 데미지 텍스트 출력
+	// 탄약 한 발 차감 직후 소모량 전달
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
+	FOnAmmoSpent OnAmmoSpent;
+
+	// 보스 본체 명중 시 피해 적용 전에 호출
+	UPROPERTY(BlueprintAssignable, Category = "Combat|Hit")
+	FOnBossShotLanded OnBossShotLanded;
+
+	// 기존 히트마커와 데미지 텍스트 이벤트
 	UPROPERTY(BlueprintAssignable, Category = "Combat|Hit")
 	FOnBossHitConfirmed OnBossHitConfirmed;
 
@@ -108,10 +125,10 @@ private:
 	// 과녁 명중 시 궁극기 스택 처리
 	void HandleUltimateTargetHit(AActor* HitActor);
 
-	// 총구 소켓에서 발사 이펙트와 사운드 재생
+	// 총구에서 발사 이펙트와 소리 재생
 	void PlayFireEffects();
 
-	// 명중 위치에서 이펙트와 사운드 재생
+	// 명중 위치에서 이펙트와 소리 재생
 	void PlayImpactEffects(
 		const FHitResult& HitResult,
 		bool bHitBoss
@@ -167,7 +184,7 @@ private:
 	float ReloadTimePerRound = 0.69f;
 
 private:
-	// 보스 본체 판별에 사용할 BP 클래스
+	// BP에서 BP_BossCharacterBase 지정
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Hit")
 	TSubclassOf<AActor> BossActorClass;
 
@@ -176,15 +193,15 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
 	FName MuzzleSocketName = TEXT("FX_Gun_Barrel");
 
-	// 총구에서 재생할 나이아가라
+	// 총구 나이아가라
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
 	TObjectPtr<UNiagaraSystem> MuzzleEffect;
 
-	// 총구 소켓 기준 이펙트 위치 보정
+	// 소켓 기준 이펙트 위치 보정
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
 	FVector MuzzleEffectLocationOffset = FVector::ZeroVector;
 
-	// 총구 소켓 기준 이펙트 회전 보정
+	// 소켓 기준 이펙트 회전 보정
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
 	FRotator MuzzleEffectRotationOffset = FRotator::ZeroRotator;
 
@@ -196,11 +213,11 @@ private:
 	)
 	float MuzzleEffectScale = 1.0f;
 
-	// 실제 발사 성공 시 재생할 소리
+	// 발사 소리
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Fire")
 	TObjectPtr<USoundBase> FireSound;
 
-	// 발사음 음량 배율
+	// 발사음 음량
 	UPROPERTY(
 		EditDefaultsOnly,
 		Category = "Combat|Effects|Fire",
@@ -209,21 +226,19 @@ private:
 	float FireSoundVolume = 1.0f;
 
 private:
-	// 벽과 일반 대상에 명중했을 때 사용할 이펙트
+	// 벽과 일반 대상 명중 이펙트
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
 	TObjectPtr<UNiagaraSystem> DefaultImpactEffect;
 
-	// 벽과 일반 대상에 명중했을 때 사용할 소리
+	// 벽과 일반 대상 명중 소리
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
 	TObjectPtr<USoundBase> DefaultImpactSound;
 
-	// 보스 본체에 명중했을 때 사용할 이펙트
-	// 미지정 시 일반 명중 이펙트 사용
+	// 보스 전용 명중 이펙트
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
 	TObjectPtr<UNiagaraSystem> BossImpactEffect;
 
-	// 보스 본체에 명중했을 때 사용할 소리
-	// 미지정 시 일반 명중 소리 사용
+	// 보스 전용 명중 소리
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
 	TObjectPtr<USoundBase> BossImpactSound;
 
@@ -235,7 +250,7 @@ private:
 	)
 	float ImpactEffectScale = 1.0f;
 
-	// 표면 안에 묻히지 않도록 이펙트를 바깥으로 이동할 거리
+	// 명중 표면에서 이펙트를 띄우는 거리
 	UPROPERTY(
 		EditDefaultsOnly,
 		Category = "Combat|Effects|Impact",
@@ -243,11 +258,11 @@ private:
 	)
 	float ImpactEffectSurfaceOffset = 2.0f;
 
-	// 이펙트의 기본 진행 축이 다를 때 회전 보정
+	// 명중 이펙트 방향 보정
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Effects|Impact")
 	FRotator ImpactEffectRotationOffset = FRotator::ZeroRotator;
 
-	// 명중음 음량 배율
+	// 명중음 음량
 	UPROPERTY(
 		EditDefaultsOnly,
 		Category = "Combat|Effects|Impact",
@@ -279,9 +294,9 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Recoil")
 	float HorizontalRecoil = 1.2f;
 
-	// 사격 경로 디버그 표시
+	// 디버그 사격 선은 기본적으로 표시하지 않음
 	UPROPERTY(EditDefaultsOnly, Category = "Combat|Debug")
-	bool bDrawDebugTrace = true;
+	bool bDrawDebugTrace = false;
 
 private:
 	// 사격 가능 여부
@@ -290,7 +305,7 @@ private:
 	// 재장전 여부
 	bool bIsReloading = false;
 
-	// 중복 스택 획득 방지용 과녁 기록
+	// 같은 과녁의 중복 스택 획득 방지
 	TSet<TWeakObjectPtr<AActor>> HitUltimateTargets;
 
 	// 발사 간격 타이머

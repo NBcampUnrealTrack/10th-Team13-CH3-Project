@@ -39,16 +39,17 @@ void UPlayerCombatComponent::BeginPlay()
 	CurrentDamageMultiplier = 1.0f;
 	CurrentReloadTimeMultiplier = 1.0f;
 
-	// 과녁 기록 초기화
+	// 과녁 중복 처리 기록 초기화
 	HitUltimateTargets.Empty();
 
 	// 초기 탄약 정보 전달
 	BroadcastAmmoChanged();
 
-	// 총구 이펙트를 지정한 경우 메시와 소켓 확인
+	// 총구 이펙트를 지정했다면 소켓 확인
 	if (MuzzleEffect != nullptr)
 	{
-		ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+		ACharacter* OwnerCharacter =
+			Cast<ACharacter>(GetOwner());
 
 		USkeletalMeshComponent* CharacterMesh =
 			OwnerCharacter != nullptr
@@ -86,7 +87,7 @@ void UPlayerCombatComponent::TryFire()
 
 	if (CurrentAmmo <= 0)
 	{
-		// 탄약이 없으면 재장전 시도
+		// 빈 총에서는 탄환 소모 이벤트를 호출하지 않음
 		StartReload();
 		return;
 	}
@@ -94,14 +95,19 @@ void UPlayerCombatComponent::TryFire()
 	// 이벤트 처리 중 중복 사격 방지
 	bCanFire = false;
 
-	// 탄약 소모 및 UI 갱신
+	// 탄약 한 발 소모
 	--CurrentAmmo;
+
+	// 요청한 위치: 탄약 차감 직후 소모량 전달
+	OnAmmoSpent.Broadcast(1);
+
+	// 기존 탄약 UI 갱신
 	BroadcastAmmoChanged();
 
-	// 실제 발사 성공 시에만 총구 효과 재생
+	// 실제 발사 성공 시 총구 효과 재생
 	PlayFireEffects();
 
-	// 명중 판정과 반동 처리
+	// 명중 검사 및 반동 처리
 	PerformHitScan();
 	ApplyRecoil();
 
@@ -144,7 +150,7 @@ void UPlayerCombatComponent::StartReload()
 		false
 	);
 
-	// UI와 애니메이션에 시작 전달
+	// UI 및 재장전 애니메이션에 시작 전달
 	OnReloadStateChanged.Broadcast(true);
 }
 
@@ -155,7 +161,7 @@ void UPlayerCombatComponent::CancelReload()
 		return;
 	}
 
-	// 재장전 상태 및 타이머 정리
+	// 상태와 타이머 정리
 	FinishReload();
 }
 
@@ -166,7 +172,7 @@ int32 UPlayerCombatComponent::AddReserveAmmo(int32 AmmoAmount)
 		return 0;
 	}
 
-	// 예비 탄약의 남은 공간 계산
+	// 남은 공간 안에서만 탄약 추가
 	const int32 AvailableSpace = FMath::Max(
 		MaxReserveAmmo - ReserveAmmo,
 		0
@@ -179,7 +185,6 @@ int32 UPlayerCombatComponent::AddReserveAmmo(int32 AmmoAmount)
 
 	if (AddedAmmo > 0)
 	{
-		// 실제 추가됐을 때만 UI 갱신
 		ReserveAmmo += AddedAmmo;
 		BroadcastAmmoChanged();
 	}
@@ -207,7 +212,7 @@ int32 UPlayerCombatComponent::GetCylinderCapacity() const
 
 bool UPlayerCombatComponent::IsReloading() const
 {
-	// 재장전 상태 반환
+	// 현재 재장전 상태 반환
 	return bIsReloading;
 }
 
@@ -228,7 +233,8 @@ void UPlayerCombatComponent::SetUltimateBuffActive(
 
 void UPlayerCombatComponent::PlayFireEffects()
 {
-	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	ACharacter* OwnerCharacter =
+		Cast<ACharacter>(GetOwner());
 
 	if (!IsValid(OwnerCharacter))
 	{
@@ -236,7 +242,8 @@ void UPlayerCombatComponent::PlayFireEffects()
 	}
 
 	// 총이 포함된 캐릭터 메시 사용
-	USkeletalMeshComponent* CharacterMesh = OwnerCharacter->GetMesh();
+	USkeletalMeshComponent* CharacterMesh =
+		OwnerCharacter->GetMesh();
 
 	if (!IsValid(CharacterMesh))
 	{
@@ -248,7 +255,7 @@ void UPlayerCombatComponent::PlayFireEffects()
 
 	if (bHasMuzzleSocket && MuzzleEffect != nullptr)
 	{
-		// 자동 활성화를 끄고 생성해 크기 설정 후 재생
+		// 크기를 먼저 설정하고 활성화하기 위해 자동 활성화 해제
 		UNiagaraComponent* SpawnedEffect =
 			UNiagaraFunctionLibrary::SpawnSystemAttached(
 				MuzzleEffect.Get(),
@@ -263,7 +270,7 @@ void UPlayerCombatComponent::PlayFireEffects()
 
 		if (SpawnedEffect != nullptr)
 		{
-			// 소켓을 따라 움직이는 총구 이펙트
+			// 총구 소켓에 붙은 이펙트 크기 설정
 			SpawnedEffect->SetRelativeScale3D(
 				FVector(FMath::Max(MuzzleEffectScale, 0.01f))
 			);
@@ -274,7 +281,7 @@ void UPlayerCombatComponent::PlayFireEffects()
 
 	if (FireSound != nullptr)
 	{
-		// 소켓이 없더라도 발사음은 캐릭터 위치에서 재생
+		// 소켓이 없으면 발사음만 캐릭터 위치에서 재생
 		const FVector SoundLocation = bHasMuzzleSocket
 			? CharacterMesh->GetSocketLocation(MuzzleSocketName)
 			: OwnerCharacter->GetActorLocation();
@@ -293,13 +300,13 @@ void UPlayerCombatComponent::PlayImpactEffects(
 	bool bHitBoss
 )
 {
-	// 기본 명중 에셋 선택
+	// 기본 명중 효과 선택
 	UNiagaraSystem* SelectedEffect = DefaultImpactEffect.Get();
 	USoundBase* SelectedSound = DefaultImpactSound.Get();
 
 	if (bHitBoss)
 	{
-		// 보스 전용 에셋이 있으면 대체
+		// 보스 전용 에셋이 지정됐으면 대체
 		if (BossImpactEffect != nullptr)
 		{
 			SelectedEffect = BossImpactEffect.Get();
@@ -311,23 +318,22 @@ void UPlayerCombatComponent::PlayImpactEffects(
 		}
 	}
 
-	// 명중 표면 바깥쪽 방향
+	// 명중 표면 바깥 방향 계산
 	const FVector SurfaceNormal =
 		HitResult.ImpactNormal.GetSafeNormal();
 
-	// 표면 안에 묻히지 않도록 약간 바깥에 생성
+	// 표면에 묻히지 않도록 약간 띄워 생성
 	const FVector EffectLocation =
 		HitResult.ImpactPoint +
 		SurfaceNormal * FMath::Max(ImpactEffectSurfaceOffset, 0.0f);
 
-	// 기본적으로 이펙트의 +X축이 표면 바깥을 향하도록 회전
+	// 이펙트의 X축이 표면 바깥 방향을 향하도록 회전
 	const FQuat EffectRotation =
 		SurfaceNormal.Rotation().Quaternion() *
 		ImpactEffectRotationOffset.Quaternion();
 
 	if (SelectedEffect != nullptr)
 	{
-		// 명중 순간의 월드 위치에서 이펙트 재생
 		UNiagaraFunctionLibrary::SpawnSystemAtLocation(
 			this,
 			SelectedEffect,
@@ -341,7 +347,7 @@ void UPlayerCombatComponent::PlayImpactEffects(
 
 	if (SelectedSound != nullptr)
 	{
-		// 실제 명중 지점에서 소리 재생
+		// 실제 명중 위치에서 소리 재생
 		UGameplayStatics::PlaySoundAtLocation(
 			this,
 			SelectedSound,
@@ -385,13 +391,13 @@ void UPlayerCombatComponent::PerformHitScan()
 	const FVector TraceEnd =
 		ViewLocation + ShotDirection * TraceDistance;
 
-	// 자기 자신은 제외
+	// 자기 자신은 명중 검사에서 제외
 	FCollisionQueryParams QueryParams;
 	QueryParams.AddIgnoredActor(OwnerPawn);
 
 	FHitResult HitResult;
 
-	// 기존 보스 피격 채널 유지
+	// 기존 보스 전용 피격 채널 유지
 	const bool bHit = World->LineTraceSingleByChannel(
 		HitResult,
 		ViewLocation,
@@ -405,7 +411,7 @@ void UPlayerCombatComponent::PerformHitScan()
 
 	if (bDrawDebugTrace)
 	{
-		// 명중은 빨간색, 빗나감은 초록색
+		// 디버그 옵션을 켰을 때만 사격 선 표시
 		DrawDebugLine(
 			World,
 			ViewLocation,
@@ -430,20 +436,23 @@ void UPlayerCombatComponent::PerformHitScan()
 		return;
 	}
 
-	// 이번 공격 데미지와 위치 저장
-	const float ShotDamage = BaseDamage * CurrentDamageMultiplier;
+	// 이벤트 처리 전에 이번 발사의 데미지와 명중 위치 확정
+	const float ShotDamage =
+		BaseDamage * CurrentDamageMultiplier;
+
 	const FVector HitLocation = HitResult.ImpactPoint;
 
-	// 보스 본체와 그 자식 BP 판별
+	// 지정한 보스 본체 BP 및 그 자식 클래스 판별
+	// 궁극기 과녁은 보스 본체 명중에서 제외
 	const bool bHitBoss =
 		BossActorClass.Get() != nullptr &&
 		HitActor->IsA(BossActorClass.Get()) &&
 		!HitActor->IsA<ABossBerserkActor>();
 
-	// 대상이 피해로 파괴되기 전에 명중 효과 재생
+	// 피해로 대상이 파괴되기 전에 명중 효과 재생
 	PlayImpactEffects(HitResult, bHitBoss);
 
-	// 과녁 스택 처리
+	// 기존 과녁 스택 처리
 	HandleUltimateTargetHit(HitActor);
 
 	if (!IsValid(HitActor))
@@ -451,7 +460,19 @@ void UPlayerCombatComponent::PerformHitScan()
 		return;
 	}
 
-	// 피해 적용
+	if (bHitBoss)
+	{
+		// 요청한 위치: 보스 명중 시 피해 적용 전에 호출
+		OnBossShotLanded.Broadcast();
+	}
+
+	if (!IsValid(HitActor))
+	{
+		// 이벤트 수신 측에서 대상을 제거했다면 피해 적용 중단
+		return;
+	}
+
+	// 명중 대상에 공격 데미지 적용
 	UGameplayStatics::ApplyPointDamage(
 		HitActor,
 		ShotDamage,
@@ -464,8 +485,8 @@ void UPlayerCombatComponent::PerformHitScan()
 
 	if (bHitBoss)
 	{
-		// 기존 히트마커와 데미지 텍스트 UI 연결 유지
-		// 전달값은 실제 HP 감소량이 아닌 공격 데미지
+		// 기존 히트마커 및 데미지 텍스트 이벤트 유지
+		// 실제 HP 감소량이 아닌 이번 공격 데미지 전달
 		OnBossHitConfirmed.Broadcast(
 			ShotDamage,
 			HitLocation
@@ -484,7 +505,7 @@ void UPlayerCombatComponent::HandleUltimateTargetHit(
 
 	if (!HitActor->IsA<ABossBerserkActor>())
 	{
-		// 과녁만 스택 대상으로 인정
+		// 과녁만 스택 획득 대상으로 인정
 		return;
 	}
 
@@ -505,7 +526,7 @@ void UPlayerCombatComponent::HandleUltimateTargetHit(
 
 	if (HitUltimateTargets.Contains(TargetActor))
 	{
-		// 동일 과녁 중복 처리 방지
+		// 같은 과녁에서는 스택을 중복 획득하지 않음
 		return;
 	}
 
@@ -526,7 +547,7 @@ void UPlayerCombatComponent::HandleUltimateTargetHit(
 
 	if (SkillComponent->IsUltimateActive())
 	{
-		// 궁극기 활성 중 스택 획득 불가
+		// 궁극기 활성 중에는 스택 획득 불가
 		return;
 	}
 
@@ -535,14 +556,14 @@ void UPlayerCombatComponent::HandleUltimateTargetHit(
 		SkillComponent->GetRequiredTargetStacks()
 		)
 	{
-		// 최대 스택이면 추가하지 않음
+		// 최대 스택에서는 추가 획득하지 않음
 		return;
 	}
 
-	// 스택 이벤트 처리 중 중복 진입 방지
+	// 이벤트 처리 중 중복 진입 방지
 	HitUltimateTargets.Add(TargetActor);
 
-	// 기존 스택 및 UI 이벤트 실행
+	// 스택 증가 및 스택 UI 이벤트 실행
 	SkillComponent->AddUltimateTargetStack();
 }
 
@@ -563,10 +584,10 @@ void UPlayerCombatComponent::ApplyRecoil()
 		return;
 	}
 
-	// 수직 반동
+	// 수직 반동 적용
 	PlayerController->AddPitchInput(-VerticalRecoil);
 
-	// 좌우 반동
+	// 좌우 무작위 반동 적용
 	const float RandomHorizontalRecoil = FMath::FRandRange(
 		-HorizontalRecoil,
 		HorizontalRecoil
@@ -577,7 +598,7 @@ void UPlayerCombatComponent::ApplyRecoil()
 
 void UPlayerCombatComponent::ResetFireCooldown()
 {
-	// 사격 가능 상태 복구
+	// 발사 간격 종료
 	bCanFire = true;
 }
 
@@ -594,13 +615,16 @@ void UPlayerCombatComponent::HandleReloadRound()
 		return;
 	}
 
-	// 한 발 장전
+	// 예비 탄약 한 발을 실린더로 이동
 	++CurrentAmmo;
 	--ReserveAmmo;
+
+	// 장전은 탄환 사용이 아니므로 OnAmmoSpent를 호출하지 않음
 	BroadcastAmmoChanged();
 
 	if (!bIsReloading)
 	{
+		// 이벤트 처리 중 재장전이 취소됐다면 중단
 		return;
 	}
 
@@ -630,7 +654,7 @@ void UPlayerCombatComponent::FinishReload()
 		return;
 	}
 
-	// 재장전 타이머 정리
+	// 남아 있는 장전 타이머 제거
 	if (GetWorld() != nullptr)
 	{
 		GetWorld()->GetTimerManager().ClearTimer(
@@ -645,7 +669,7 @@ void UPlayerCombatComponent::FinishReload()
 
 void UPlayerCombatComponent::BroadcastAmmoChanged()
 {
-	// 탄약 UI 갱신
+	// 기존 탄약 UI 이벤트
 	OnAmmoChanged.Broadcast(
 		CurrentAmmo,
 		ReserveAmmo
