@@ -18,6 +18,13 @@ AVeilBreakPlayerController::AVeilBreakPlayerController()
 void AVeilBreakPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	FInputModeGameOnly InputMode;
+	SetInputMode(InputMode);
+	SetShowMouseCursor(false);
+	SetIgnoreMoveInput(false);
+	SetIgnoreLookInput(false);
+
 	if (ULocalPlayer* LocalPlayer = GetLocalPlayer())
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
@@ -28,4 +35,6 @@ void AVeilBreakPlayerController::BeginPlay()
 			}
 		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[Input] Game Input Restored"));
 }
