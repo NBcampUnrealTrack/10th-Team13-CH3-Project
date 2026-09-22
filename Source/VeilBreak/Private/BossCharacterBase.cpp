@@ -251,7 +251,11 @@ float ABossCharacterBase::TakeDamage(float DamageAmount, FDamageEvent const& Dam
 {
 	if (!BossStatComponent) return 0.f;
 	const float AppliedDamage = BossStatComponent->ApplyDamage(DamageAmount);
-	if (AppliedDamage > 0.f) Super::TakeDamage(AppliedDamage, DamageEvent, EventInstigator, DamageCauser);
+	if (AppliedDamage > 0.f)
+	{
+		Super::TakeDamage(AppliedDamage, DamageEvent, EventInstigator, DamageCauser);
+		OnBossDamageApplied.Broadcast(AppliedDamage);
+	}
 	return AppliedDamage;
 }
 

@@ -25,9 +25,9 @@ protected:
 	// 바닥부터 위로 이어지는 소용돌이 범위 판정용 캡슐 콜리전
 	UPROPERTY()
 	TObjectPtr<class UCapsuleComponent> DamageCollision;
-	// 피해 범위와 같은 크기로 표시할 반투명 테스트 원기둥
+	// Simple Sprite Burst 기반 소용돌이 시각 효과
 	UPROPERTY()
-	TObjectPtr<class UStaticMeshComponent> VortexMesh;
+	TObjectPtr<class UNiagaraComponent> VortexEffect;
 
 private:
 	// 현재 추적할 플레이어 참조
@@ -40,8 +40,6 @@ private:
 	float RemainingDuration = 10.f;
 	// 다음 피해 적용까지 누적 시간, 초
 	float DamageAccumulator = 0.f;
-	// 추적 중 소용돌이 메시의 초당 회전 각도
-	FRotator VortexRotationRate = FRotator(0.f, 240.f, 0.f);
 	// 현재 범위 안 플레이어에게 한 차례 피해 적용
 	void ApplyDamageTick();
 };
