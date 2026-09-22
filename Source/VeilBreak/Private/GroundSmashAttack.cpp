@@ -1,5 +1,4 @@
 #include "GroundSmashAttack.h"
-#include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 #include "NiagaraComponent.h"
@@ -231,26 +230,6 @@ void AGroundSmashAttack::Tick(float DeltaTime)//파장을 조금씩 확대
             );
         }
     }
-
-    const float HalfWidth = FMath::Max(WaveWidth, 0.0f) * 0.5f;
-    const float InnerRadius =
-        FMath::Max(CurrentRadius - HalfWidth, 0.0f);
-    const float OuterRadius = CurrentRadius + HalfWidth;
-
-    // 테스트용: 액터 위치를 중심으로 수평 원 표시
-    const FVector Center = GetActorLocation();
-
-    DrawDebugCircle(
-        GetWorld(), Center, InnerRadius, 64,
-        FColor::Yellow, false, -1.0f, 0, 2.0f,
-        FVector::ForwardVector, FVector::RightVector, false
-    );
-
-    DrawDebugCircle(
-        GetWorld(), Center, OuterRadius, 64,
-        FColor::Red, false, -1.0f, 0, 2.0f,
-        FVector::ForwardVector, FVector::RightVector, false
-    );
 
     if (CurrentRadius >= EndRadius)
     {
