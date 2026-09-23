@@ -84,12 +84,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UMaterialInterface> ShockwaveMaterial;
 
-	/** 파동이 한 번 다 퍼지는(0 → PullRadius) 데 걸리는 시간(초). 다 퍼지면 즉시 리셋하고 다시 시작 */
+	/** 파동이 한 번 다 퍼지는(0 → PullRadius) 데 걸리는 시간(초) */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "0.1"))
 	float ShockwaveInterval = 1.2f;
 
+	/** 파동이 다 끝난 다음, 다시 시작하기 전까지 쉬는 시간(초). 0이면 지금처럼 끝나자마자 바로 다시 시작함 */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "0.0"))
-	float ShockwaveGap = 3.f;
+	float ShockwaveGap = 0.5f;
 
 	/** 지금 파동이 시작된 후 몇 초 지났는지 (내부 계산용) */
 	float ShockwaveElapsed = 0.f;
@@ -102,17 +103,28 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UAudioComponent> LoopingSound;
 
+	// 나이아가라 이펙트(빨려들어가는 파티클)는 2단계에서 추가 예정.
 
+	/**
+	 * 발동 중 맵 전체를 감싸는 우주 돔(스카이박스처럼 안에서 보면 성운이 보이는 큰 구).
+	 * 손 위 구체나 파동이랑 달리 화면을 가리는 게 목적이 아니라, 방 전체를 "우주 안"처럼 보이게 하는 배경용.
+	 * BP_BossBlackHole의 Components 패널에서 Static Mesh를 SM_Dome 같은 걸로 직접 지정하면 됨.
+	 */
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UStaticMeshComponent> SkyboxDome;
 
-
+	/**
+	 * 우주 돔의 크기를 PullRadius(실제 당김 판정 범위) 대비 몇 배로 할지.
+	 * 1.0이면 돔 표면이 딱 판정 범위 끝에 걸침, 1.3 정도로 여유를 주면 플레이어가 안에서 돔 표면을 직접 보는 일이 적어짐.
+	 * 돔의 실제 스케일 계산은 메시 자체의 실제 크기(Bounds)를 코드에서 읽어와 자동으로 처리하므로,
+	 * SM_Dome이든 다른 메시로 바뀌든 이 배율만 신경 쓰면 됨.
+	 */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "1.0"))
 	float SkyboxDomeRadiusMultiplier = 1.3f;
 
 	/** 당김 판정 반경 (uu 단위, 언리얼 기본 캐릭터 캡슐 반경이 약 34uu) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
-	float PullRadius = 3000.f;
+	float PullRadius = 3600.f;
 
 	/** 끌려가는 속도. 걷기 400 < PullSpeed < 뛰기 650 사이로 맞춘 기본값 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
@@ -120,7 +132,7 @@ protected:
 
 	/** 블랙홀 지속 시간 (초) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
-	float Duration = 20.f;
+	float Duration = 5.f;
 
 	bool bIsActive = false;
 

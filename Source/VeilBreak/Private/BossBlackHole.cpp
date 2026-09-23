@@ -7,7 +7,6 @@
 #include "Components/AudioComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "DrawDebugHelpers.h"
 #include "UObject/ConstructorHelpers.h"
 
 ABossBlackHole::ABossBlackHole()
@@ -125,10 +124,6 @@ void ABossBlackHole::ActivateBlackHole()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[BossBlackHole] Activated (Radius=%.0f, Speed=%.0f, Duration=%.1f)"), PullRadius, PullSpeed, Duration);
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, Duration, FColor::Magenta, TEXT("BlackHole Activated"));
-	}
 
 	// BT가 종료 호출을 놓치는 경우를 대비한 자체 타이머
 	GetWorldTimerManager().SetTimer(DeactivateTimerHandle, this, &ABossBlackHole::DeactivateBlackHole, Duration, false);
@@ -166,11 +161,6 @@ void ABossBlackHole::DeactivateBlackHole()
 	SkyboxDome->SetVisibility(false);
 	LoopingSound->Stop();
 	GetWorldTimerManager().ClearTimer(DeactivateTimerHandle);
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::White, TEXT("BlackHole Deactivated"));
-	}
 }
 
 void ABossBlackHole::Tick(float DeltaTime)
@@ -182,11 +172,8 @@ void ABossBlackHole::Tick(float DeltaTime)
 		return;
 	}
 
-	// 판정 범위를 눈으로 볼 수 있도록 표시 (테스트용. 실제 출시 빌드에선 지워도 됨)
-	DrawDebugSphere(GetWorld(), GetActorLocation(), PullRadius, 24, FColor::Purple, false, -1.f, 0, 1.5f);
-
-	// 파동 원반을 실제로 키움: 0초일 땐 크기 0, ShockwaveInterval초가 지나면 PullRadius 크기가 됨.
-	// 그 순간 ShockwaveElapsed를 0으로 리셋해서 처음부터 다시 시작 -> 계속 반복되는 파동
+	// 파동 한 사이클 = "커지는 시간(ShockwaveInterval)" + "쉬는 시간(ShockwaveGap)".
+	// 이 전체 길이를 넘기면 처음부터 다시 시작 -> 반복되는 파동 사이에 멈춰있는 구간이 생김
 	const float TotalCycleLength = ShockwaveInterval + ShockwaveGap;
 	ShockwaveElapsed += DeltaTime;
 	if (ShockwaveElapsed >= TotalCycleLength)
@@ -194,17 +181,22 @@ void ABossBlackHole::Tick(float DeltaTime)
 		ShockwaveElapsed = 0.f;
 	}
 
-	constexpr float DefaultEngineSphereRadius = 50.f;
+	constexpr float DefaultEngineSphereRadius = 50.f; // 엔진 기본 구체 메시의 실제 반지름(uu)
 	if (ShockwaveElapsed < ShockwaveInterval)
 	{
-		const float ShockwaveProgress = ShockwaveElapsed / ShockwaveInterval;
+		// 아직 "커지는 시간" 구간 안 -> 파동이 실제로 움직이는 중
+		const float ShockwaveProgress = ShockwaveElapsed / ShockwaveInterval; // 0~1
+		// (1 - Progress)를 써서 반대로 만듦: 0초일 땐 PullRadius(범위 끝)만큼 크다가,
+		// ShockwaveInterval초가 지나면 크기 0(중심)까지 줄어듦 -> 밖에서 안으로 빨려들어가는 파동
 		const float CurrentWorldRadius = (1.f - ShockwaveProgress) * PullRadius;
 		ShockwaveDisc->SetRelativeScale3D(FVector(CurrentWorldRadius / DefaultEngineSphereRadius));
 	}
 	else
 	{
+		// "쉬는 시간" 구간 -> 크기 0으로 숨겨둠 (파동이 잠깐 안 보임)
 		ShockwaveDisc->SetRelativeScale3D(FVector::ZeroVector);
 	}
+
 	if (IsValid(OverlappingCharacter))
 	{
 		ApplyPullToCharacter(OverlappingCharacter, DeltaTime);
