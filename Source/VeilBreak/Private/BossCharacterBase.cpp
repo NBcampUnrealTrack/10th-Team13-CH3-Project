@@ -84,6 +84,9 @@ ABossCharacterBase::ABossCharacterBase()
 	// 낙석 위험 지점 표시용 Sevarog 지속 타기팅 이펙트
 	static ConstructorHelpers::FObjectFinder<UParticleSystem> FallingRockWarning(
 		TEXT("/Game/ParagonSevarog/FX/Particles/Abilities/SoulSiphon/FX/P_SiphonTargeting.P_SiphonTargeting"));
+	// 마법 공격 도착 지점 표시용 Revenant 표식 이펙트
+	static ConstructorHelpers::FObjectFinder<UParticleSystem> MagicAttackWarning(
+		TEXT("/Game/ParagonRevenant/FX/Particles/Revenant/Abilities/Mark/FX/P_Revenant_Mark_Targeting.P_Revenant_Mark_Targeting"));
 	// 사망 모션 종료 후 보스가 사라질 때 재생할 Sevarog 영혼 폭발 이펙트
 	static ConstructorHelpers::FObjectFinder<UParticleSystem> DeathDisappearParticle(
 		TEXT("/Game/ParagonSevarog/FX/Particles/Abilities/SoulStackPassive/FX/P_SoulStageEmbersBurst.P_SoulStageEmbersBurst"));
@@ -100,6 +103,7 @@ ABossCharacterBase::ABossCharacterBase()
 	BerserkOrbClass = BerserkOrbBlueprint.Succeeded() ? BerserkOrbBlueprint.Class.Get() : ABossBerserkActor::StaticClass();
 	VortexClass = VortexBlueprint.Succeeded() ? VortexBlueprint.Class.Get() : ABossVortexActor::StaticClass();
 	if (FallingRockWarning.Succeeded()) FallingRockWarningEffect = FallingRockWarning.Object;
+	if (MagicAttackWarning.Succeeded()) MagicAttackWarningEffect = MagicAttackWarning.Object;
 	if (DeathDisappearParticle.Succeeded()) DeathDisappearEffect = DeathDisappearParticle.Object;
 	// 피격용 Physics Asset
 	static ConstructorHelpers::FObjectFinder<UPhysicsAsset> BossPhysicsAsset(
@@ -221,7 +225,6 @@ bool ABossCharacterBase::StartFallingRock(const FVector& Target)
 	if (FallingRockVoice) UGameplayStatics::PlaySoundAtLocation(this, FallingRockVoice, GetActorLocation());
 	GetWorldTimerManager().SetTimer(FallingRockWarningTimer, this, &ABossCharacterBase::ShowFallingRockWarning, FallingRockWarningDelay, false);
 	GetWorldTimerManager().SetTimer(FallingRockReleaseTimer, this, &ABossCharacterBase::ReleaseFallingRock, FMath::Clamp(FallingRockReleaseDelay, 0.01f, Duration * 0.95f), false);
-	GetWorldTimerManager().SetTimer(FallingRockWarningClearTimer, this, &ABossCharacterBase::ClearFallingRockWarning, FallingRockWarningDelay + FallingRockWarningDuration, false);
 	GetWorldTimerManager().SetTimer(FallingRockFinishTimer, this, &ABossCharacterBase::FinishFallingRock, Duration, false);
 	return true;
 }
@@ -265,6 +268,7 @@ void ABossCharacterBase::HandleBossDied()
 	// 사망 이후 예약된 패턴 생성과 Idle 복귀 차단
 	GetWorldTimerManager().ClearTimer(MagicReleaseTimer);
 	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
+	GetWorldTimerManager().ClearTimer(MagicWarningClearTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockReleaseTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockFinishTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockWarningTimer);
@@ -290,6 +294,7 @@ void ABossCharacterBase::HandleBossDied()
 	}
 	ActiveBerserkOrbs.Reset();
 	RemainingBerserkOrbs = 0;
+	ClearMagicAttackWarning();
 	ClearFallingRockWarning();
 
 	// CharacterMovement와 AIController의 이동·Behavior Tree 실행 정지
@@ -369,7 +374,13 @@ bool ABossCharacterBase::StartMagicAttack(const FVector& Target)
 	const float Duration = CastMotion->GetPlayLength();
 	if (Duration <= 0.f) return false;
 	RestoreBossAnimationBlueprint();
-	MagicTarget = Target;
+	// 플레이어 높이에 관계없이 마법 공격이 도착할 지면 위치를 고정
+	const FVector GroundTraceStart = Target + FVector(0.f, 0.f, 5000.f);
+	const FVector GroundTraceEnd = Target - FVector(0.f, 0.f, 10000.f);
+	FCollisionQueryParams GroundTraceParams(SCENE_QUERY_STAT(MagicAttackGroundTrace), false, this);
+	FCollisionObjectQueryParams GroundObjectParams(ECC_WorldStatic);
+	FHitResult GroundHit;
+	MagicTarget = GetWorld()->LineTraceSingleByObjectType(GroundHit, GroundTraceStart, GroundTraceEnd, GroundObjectParams, GroundTraceParams) ? GroundHit.ImpactPoint : Target;
 	// 목표를 향한 수평 방향으로 보스 회전
 	const FVector ToTarget = MagicTarget - GetActorLocation();
 	if (!ToTarget.IsNearlyZero()) SetActorRotation(FRotator(0.0f, ToTarget.Rotation().Yaw, 0.0f));
@@ -377,9 +388,28 @@ bool ABossCharacterBase::StartMagicAttack(const FVector& Target)
 	bMagicAttackLaunched = false;
 	// 마법공격 시전 시작 보이스 1회 재생
 	if (MagicAttackVoice) UGameplayStatics::PlaySoundAtLocation(this, MagicAttackVoice, GetActorLocation());
+	ShowMagicAttackWarning();
 	GetWorldTimerManager().SetTimer(MagicReleaseTimer, this, &ABossCharacterBase::ReleaseMagicAttack, FMath::Clamp(MagicReleaseDelay, 0.01f, Duration * 0.95f), false);
 	GetWorldTimerManager().SetTimer(MagicFinishTimer, this, &ABossCharacterBase::FinishMagicAttack, Duration, false);
 	return true;
+}
+
+// 마법 공격이 도착할 바닥 위치에 지속 타기팅 경고 표시
+void ABossCharacterBase::ShowMagicAttackWarning()
+{
+	if (!bMagicAttackRunning || !MagicAttackWarningEffect || !GetWorld()) return;
+	ClearMagicAttackWarning();
+	const FVector WarningLocation = MagicTarget + FVector(0.f, 0.f, 2.f);
+	MagicWarningComponent = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MagicAttackWarningEffect, FTransform(FRotator::ZeroRotator, WarningLocation, FVector(MagicAttackWarningScale)), true, EPSCPoolMethod::None, true);
+}
+
+// 표시 중인 마법 공격 경고를 즉시 종료하고 참조 해제
+void ABossCharacterBase::ClearMagicAttackWarning()
+{
+	if (!MagicWarningComponent) return;
+	MagicWarningComponent->DeactivateSystem();
+	MagicWarningComponent->DestroyComponent();
+	MagicWarningComponent = nullptr;
 }
 
 // 손 본 기준 발사 위치에서 월드 목표 좌표로 이동 시작
@@ -400,6 +430,12 @@ void ABossCharacterBase::ReleaseMagicAttack()
 		Projectile->Configure(MagicAttackProjectileDamage, MagicAttackExplosiveDamage, MagicAttackProjectileSpeed);
 		Projectile->LaunchAt(MagicTarget);
 		bMagicAttackLaunched = true;
+		const float FlightDuration = FVector::Distance(SpawnLocation, MagicTarget) / FMath::Max(MagicAttackProjectileSpeed, 1.f);
+		GetWorldTimerManager().SetTimer(MagicWarningClearTimer, this, &ABossCharacterBase::ClearMagicAttackWarning, FMath::Max(FlightDuration, 0.01f), false);
+	}
+	else
+	{
+		ClearMagicAttackWarning();
 	}
 }
 
@@ -425,6 +461,13 @@ void ABossCharacterBase::ReleaseFallingRock()
 	{
 		Rock->Configure(FallingRockDamage, FallingRockProjectileSpeed);
 		Rock->LaunchAt(FallingRockTarget);
+		// 낙석 액터와 동일한 계산으로 착지 시점까지 워닝사인 유지
+		const float FlightDuration = FMath::Max(FVector::Distance(SpawnLocation, FallingRockTarget) / FMath::Max(FallingRockProjectileSpeed, 1.f), 0.1f);
+		GetWorldTimerManager().SetTimer(FallingRockWarningClearTimer, this, &ABossCharacterBase::ClearFallingRockWarning, FlightDuration, false);
+	}
+	else
+	{
+		ClearFallingRockWarning();
 	}
 }
 
@@ -624,6 +667,7 @@ void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	GetWorldTimerManager().ClearTimer(DeathDisappearTimer);
 	GetWorldTimerManager().ClearTimer(MagicReleaseTimer);
 	GetWorldTimerManager().ClearTimer(MagicFinishTimer);
+	GetWorldTimerManager().ClearTimer(MagicWarningClearTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockReleaseTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockFinishTimer);
 	GetWorldTimerManager().ClearTimer(FallingRockWarningTimer);
@@ -638,6 +682,7 @@ void ABossCharacterBase::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		if (Orb.IsValid()) Orb->Destroy();
 	}
+	ClearMagicAttackWarning();
 	ClearFallingRockWarning();
 	Super::EndPlay(EndPlayReason);
 }

@@ -239,12 +239,15 @@ protected:
 	// 낙석 위험 지점에 지속 표시할 Sevarog 타기팅 이펙트
 	UPROPERTY()
 	TObjectPtr<class UParticleSystem> FallingRockWarningEffect;
+	// 마법 공격 도착 지점에 지속 표시할 타기팅 이펙트
+	UPROPERTY()
+	TObjectPtr<class UParticleSystem> MagicAttackWarningEffect;
+	// 마법 공격 경고 이펙트 월드 크기 배율
+	UPROPERTY()
+	float MagicAttackWarningScale = 1.1f;
 	// 낙석 패턴 시작부터 경고 표시까지 지연, 초
 	UPROPERTY()
 	float FallingRockWarningDelay = 0.2f;
-	// 경고 표시 유지 시간, 초
-	UPROPERTY()
-	float FallingRockWarningDuration = 1.8f;
 	// 경고 이펙트 월드 크기 배율
 	UPROPERTY()
 	float FallingRockWarningScale = 2.f;
@@ -330,6 +333,8 @@ private:
 	FTimerHandle MagicReleaseTimer;
 	// Idle 복귀 타이머
 	FTimerHandle MagicFinishTimer;
+	// 마법 공격 위험 지점 경고 제거 타이머
+	FTimerHandle MagicWarningClearTimer;
 	// FallingRock 발사 예약 타이머
 	FTimerHandle FallingRockReleaseTimer;
 	// FallingRock Idle 복귀 타이머
@@ -342,8 +347,14 @@ private:
 	FTimerHandle DeathDisappearTimer;
 	// 현재 표시 중인 FallingRock 위험 지점 ParticleSystem 컴포넌트
 	TObjectPtr<class UParticleSystemComponent> FallingRockWarningComponent;
+	// 현재 표시 중인 마법 공격 위험 지점 ParticleSystem 컴포넌트
+	TObjectPtr<class UParticleSystemComponent> MagicWarningComponent;
 	// 손 위치에서 목표로 투사체 생성
 	void ReleaseMagicAttack();
+	// 시전 시 저장한 바닥 목표에 마법 공격 위험 지점 경고 생성
+	void ShowMagicAttackWarning();
+	// 현재 마법 공격 위험 지점 경고 비활성화·제거
+	void ClearMagicAttackWarning();
 	// Cast 종료 후 Idle 반복 재생 복귀
 	void FinishMagicAttack();
 	// 보스 손 위치에서 낙석 액터 생성
