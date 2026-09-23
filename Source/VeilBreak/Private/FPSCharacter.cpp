@@ -643,8 +643,8 @@ void AFPSCharacter::HandleUltimateStateChanged(
 
 	if (bIsUltimateActive)
 	{
-		// 궁극기 8초 동안 Shift 입력 없이 상시 달리기 속도 적용
-		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+		// 궁극기 동안 Shift 입력 없이 전용 이동 속도 적용
+		GetCharacterMovement()->MaxWalkSpeed = FMath::Max(UltimateMoveSpeed, 0.0f);
 		return;
 	}
 
@@ -656,8 +656,8 @@ void AFPSCharacter::StartSprint()
 {
 	if (bIsUltimateActive)
 	{
-		// 궁극기 중에는 스태미나 소모 없이 달리기 속도 유지
-		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+		// 궁극기 중 Shift를 눌러도 전용 이동 속도 유지
+		GetCharacterMovement()->MaxWalkSpeed = FMath::Max(UltimateMoveSpeed, 0.0f);
 		return;
 	}
 
@@ -685,9 +685,9 @@ void AFPSCharacter::StopSprint()
 		PlayerStaminaComponent->StopSprintConsumption();
 	}
 
-	// 궁극기 중에는 Shift를 떼어도 상시 달리기 속도 유지
+	// 궁극기 중에는 Shift를 떼어도 전용 이동 속도 유지
 	GetCharacterMovement()->MaxWalkSpeed = bIsUltimateActive
-		? SprintSpeed
+		? FMath::Max(UltimateMoveSpeed, 0.0f)
 		: WalkSpeed;
 }
 

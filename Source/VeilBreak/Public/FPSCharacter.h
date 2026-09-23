@@ -358,6 +358,10 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float SprintSpeed = 650.0f;
 
+	// 궁극기 중 적용할 이동 속도.
+	UPROPERTY(EditDefaultsOnly, Category = "Movement|Ultimate", meta = (ClampMin = "0.0", Units = "cm/s"))
+	float UltimateMoveSpeed = 800.0f;
+
 	// 대시로 순간 이동하는 고정 거리
 	UPROPERTY(EditDefaultsOnly, Category = "Movement|Dash")
 	float DashDistance = 650.0f;
@@ -454,4 +458,3 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> PotionAction;
 };
-
