@@ -5,7 +5,6 @@
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Animation/AnimSequence.h"
 #include "Sound/SoundBase.h"
 #include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -77,13 +76,6 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 
 	Spawned->ActivateBlackHole();
 	Memory->SpawnedBlackHole = Spawned;
-	Memory->Boss = Boss;
-
-	// 캐스트 애니메이션 재생 (BossCharacterBase의 마법공격이랑 같은 방식: PlayAnimation으로 직접 재생)
-	if (CastAnimation && Boss->GetMesh())
-	{
-		Boss->GetMesh()->PlayAnimation(CastAnimation, false);
-	}
 
 	// 발동 사운드 재생 (블랙홀 스폰 위치에서 3D로 재생, 한 번만)
 	if (ActivationSound)
@@ -147,11 +139,4 @@ void UBTT_BossBlackHole::CleanUpBlackHole(FBTBlackHoleMemory* Memory)
 		Memory->LoopingSoundComponent->DestroyComponent();
 	}
 	Memory->LoopingSoundComponent = nullptr;
-
-	// 캐스트 애니메이션이 끝난 자세로 멈춰있지 않도록 Idle로 복귀
-	if (IdleAnimationAfter && Memory->Boss.IsValid() && Memory->Boss->GetMesh())
-	{
-		Memory->Boss->GetMesh()->PlayAnimation(IdleAnimationAfter, true);
-	}
-	Memory->Boss = nullptr;
 }
