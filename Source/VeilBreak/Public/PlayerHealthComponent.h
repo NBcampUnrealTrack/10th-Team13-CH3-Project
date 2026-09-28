@@ -76,11 +76,11 @@ private:
 
 	// 최대 체력
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
-	float MaxHealth = 100.0f;
+	float MaxHealth = 10000000.0f;
 
 	// 현재 체력
 	UPROPERTY(VisibleInstanceOnly, Category = "Health")
-	float CurrentHealth = 100.0f;
+	float CurrentHealth = 10000000.0f;
 
 	// 사망 여부
 	UPROPERTY(VisibleInstanceOnly, Category = "Health")
