@@ -8,6 +8,7 @@
 class UBossStatComponent;
 class ABossBerserkActor;
 class ABossVortexActor;
+class UPhysicsAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnBossDamageApplied, float, AppliedDamage);
 
@@ -102,6 +103,9 @@ protected:
 	// 보스 체력·무적·사망 상태 컴포넌트
 	UPROPERTY()
 	TObjectPtr<class UBossStatComponent> BossStatComponent;
+	// 생성자에서 로드하고 BeginPlay에서 Mesh에 적용할 보스 피격용 Physics Asset
+	UPROPERTY()
+	TObjectPtr<UPhysicsAsset> BossPhysicsAsset;
 	// 종료 시 시전 타이머 정리
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	// 팀원 Single Node 패턴의 호환 복귀 포즈

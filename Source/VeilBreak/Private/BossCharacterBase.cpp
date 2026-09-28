@@ -106,8 +106,9 @@ ABossCharacterBase::ABossCharacterBase()
 	if (MagicAttackWarning.Succeeded()) MagicAttackWarningEffect = MagicAttackWarning.Object;
 	if (DeathDisappearParticle.Succeeded()) DeathDisappearEffect = DeathDisappearParticle.Object;
 	// 피격용 Physics Asset
-	static ConstructorHelpers::FObjectFinder<UPhysicsAsset> BossPhysicsAsset(
+	static ConstructorHelpers::FObjectFinder<UPhysicsAsset> BossPhysicsAssetFinder(
 		TEXT("/Game/Boss/Physics/PA_BossSevarog_ShadowCyl.PA_BossSevarog_ShadowCyl"));
+	if (BossPhysicsAssetFinder.Succeeded()) BossPhysicsAsset = BossPhysicsAssetFinder.Object;
 
 	if (BossMesh.Succeeded())
 	{
@@ -121,10 +122,6 @@ ABossCharacterBase::ABossCharacterBase()
 
 	// Physics Asset의 단순 충돌체 사용
 	GetMesh()->bEnablePerPolyCollision = false;
-	if (BossPhysicsAsset.Succeeded())
-	{
-		GetMesh()->SetPhysicsAsset(BossPhysicsAsset.Object);
-	}
 	// 화면에 렌더링될 때만 애니메이션 갱신
 	GetMesh()->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::OnlyTickPoseWhenRendered;
 
@@ -149,6 +146,7 @@ ABossCharacterBase::ABossCharacterBase()
 void ABossCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+	if (BossPhysicsAsset) GetMesh()->SetPhysicsAsset(BossPhysicsAsset);
 	BossAnimationClass = GetMesh()->AnimClass;
 	if (!BossAnimationClass || !BossAnimationClass->IsChildOf(UBossAnimInstance::StaticClass()))
 	{
