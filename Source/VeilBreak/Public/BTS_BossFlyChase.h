@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTService.h"
@@ -6,14 +6,14 @@
 #include "BTS_BossFlyChase.generated.h"
 
 /**
- * BT Service - °øÁß Ãß°İ/Á¤Áö/µµ¸Á
- * ÃÖ»ó´Ü Sequence¿¡ ºÙ¿©µÎ¸é Ç×»ó ¹è°æ¿¡¼­ °è¼Ó µµ´Â ¼­ºñ½º.
- * TargetDistance ºí·¢º¸µå °ª(BTS_UpdateBossContext°¡ ÀÌ¹Ì °»½ÅÇØÁÖ´Â °ª)À» °è¼Ó °¨½ÃÇÏ¸é¼­
- * - FleeDistance(1000)º¸´Ù °¡±î¿ì¸é ÇÃ·¹ÀÌ¾î ¹İ´ë ¹æÇâÀ¸·Î µµ¸Á
- * - ChaseStartDistance(3000)º¸´Ù ¸Ö¸é Ãß°İ
- * - ±× »çÀÌ(1500~3000)¸é Á¦ÀÚ¸®¿¡ ¸ØÃç¼­ ¶°ÀÖÀ½
+ * BT Service - ê³µì¤‘ ì¶”ê²©/ì •ì§€/ë„ë§
+ * ìµœìƒë‹¨ Sequenceì— ë¶™ì—¬ë‘ë©´ í•­ìƒ ë°°ê²½ì—ì„œ ê³„ì† ë„ëŠ” ì„œë¹„ìŠ¤.
+ * TargetDistance ë¸”ë™ë³´ë“œ ê°’(BTS_UpdateBossContextê°€ ì´ë¯¸ ê°±ì‹ í•´ì£¼ëŠ” ê°’)ì„ ê³„ì† ê°ì‹œí•˜ë©´ì„œ
+ * - FleeDistance(1000)ë³´ë‹¤ ê°€ê¹Œìš°ë©´ í”Œë ˆì´ì–´ ë°˜ëŒ€ ë°©í–¥ìœ¼ë¡œ ë„ë§
+ * - ChaseStartDistance(3000)ë³´ë‹¤ ë©€ë©´ ì¶”ê²©
+ * - ê·¸ ì‚¬ì´(1500~3000)ë©´ ì œìë¦¬ì— ë©ˆì¶°ì„œ ë– ìˆìŒ
  *
- * º¸½º´Â ÀÌ Service°¡ ºÙ¾îÀÖ´Â µ¿¾È Ç×»ó Flying ¸ğµå·Î À¯ÁöµÈ´Ù.
+ * ë³´ìŠ¤ëŠ” ì´ Serviceê°€ ë¶™ì–´ìˆëŠ” ë™ì•ˆ í•­ìƒ Flying ëª¨ë“œë¡œ ìœ ì§€ëœë‹¤.
  */
 UCLASS()
 class VEILBREAK_API UBTS_BossFlyChase : public UBTService
@@ -28,43 +28,43 @@ protected:
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds) override;
 
-	/** ºñÇà ÀÌµ¿ ¼Óµµ */
+	/** ë¹„í–‰ ì´ë™ ì†ë„ */
 	UPROPERTY(EditAnywhere, Category = "Flight")
 	float ChaseSpeed = 300.f;
 
-	/** ÀÌ °Å¸®º¸´Ù ¸Ö¾îÁö¸é Ãß°İÀ» ½ÃÀÛÇÔ */
+	/** ì´ ê±°ë¦¬ë³´ë‹¤ ë©€ì–´ì§€ë©´ ì¶”ê²©ì„ ì‹œì‘í•¨ */
 	UPROPERTY(EditAnywhere, Category = "Flight", meta = (ClampMin = "0.0"))
 	float ChaseStartDistance = 3000.f;
 
-	/** ÀÌ °Å¸® ÀÌÇÏ·Î °¡±î¿öÁö¸é Ãß°İÀ» ¸ØÃã (ChaseStartDistanceº¸´Ù ÀÛ¾Æ¾ß ÇÔ, ¾È ±×·¯¸é °è¼Ó ¶³¸²) */
+	/** ì´ ê±°ë¦¬ ì´í•˜ë¡œ ê°€ê¹Œì›Œì§€ë©´ ì¶”ê²©ì„ ë©ˆì¶¤ (ChaseStartDistanceë³´ë‹¤ ì‘ì•„ì•¼ í•¨, ì•ˆ ê·¸ëŸ¬ë©´ ê³„ì† ë–¨ë¦¼) */
 	UPROPERTY(EditAnywhere, Category = "Flight", meta = (ClampMin = "0.0"))
 	float ChaseStopDistance = 2000.f;
 
-	/** ÇÃ·¹ÀÌ¾î ±âÁØ ¸î uu À§ ³ôÀÌ¸¦ À¯ÁöÇÏ¸ç ³¯Áö.
-	 * ÁÖÀÇ: ½ÇÁ¦ 3D °Å¸®´Â Ç×»ó ÃÖ¼Ò ÀÌ °ª¸¸Å­Àº ³ª¿À°Ô µÇ¹Ç·Î,
-	 * FleeDistance/ChaseStopDistance/ChaseStartDistance´Â ÀüºÎ ÀÌ °ªº¸´Ù Ä¿¾ß Á¤»ó ÀÛµ¿ÇÔ */
+	/** í”Œë ˆì´ì–´ ê¸°ì¤€ ëª‡ uu ìœ„ ë†’ì´ë¥¼ ìœ ì§€í•˜ë©° ë‚ ì§€.
+	 * ì£¼ì˜: ì‹¤ì œ 3D ê±°ë¦¬ëŠ” í•­ìƒ ìµœì†Œ ì´ ê°’ë§Œí¼ì€ ë‚˜ì˜¤ê²Œ ë˜ë¯€ë¡œ,
+	 * FleeDistance/ChaseStopDistance/ChaseStartDistanceëŠ” ì „ë¶€ ì´ ê°’ë³´ë‹¤ ì»¤ì•¼ ì •ìƒ ì‘ë™í•¨ */
 	UPROPERTY(EditAnywhere, Category = "Flight")
 	float FlightAltitude = 1000.f;
 
-	/** ¸ñÀûÁö¿¡ ÀÌ Á¤µµ °Å¸® ¾È¿¡ µé¾î¿À¸é µµÂøÇÑ °É·Î Ä§ */
+	/** ëª©ì ì§€ì— ì´ ì •ë„ ê±°ë¦¬ ì•ˆì— ë“¤ì–´ì˜¤ë©´ ë„ì°©í•œ ê±¸ë¡œ ì¹¨ */
 	UPROPERTY(EditAnywhere, Category = "Flight")
 	float AcceptanceRadius = 150.f;
 
-	/** ÀÌ °Å¸®º¸´Ù °¡±î¿öÁö¸é ÇÃ·¹ÀÌ¾î ¹İ´ë ¹æÇâÀ¸·Î µµ¸Á°¨ */
+	/** ì´ ê±°ë¦¬ë³´ë‹¤ ê°€ê¹Œì›Œì§€ë©´ í”Œë ˆì´ì–´ ë°˜ëŒ€ ë°©í–¥ìœ¼ë¡œ ë„ë§ê° */
 	UPROPERTY(EditAnywhere, Category = "Flight", meta = (ClampMin = "0.0"))
 	float FleeDistance = 1300.f;
 
-	/** µµ¸Á°¡´Ù°¡ ÀÌ °Å¸® ÀÌ»ó ¹ú¾îÁö¸é ¸ØÃã (FleeDistanceº¸´Ù Ä¿¾ß ÇÔ, ¾È ±×·¯¸é °è¼Ó ¶³¸²) */
+	/** ë„ë§ê°€ë‹¤ê°€ ì´ ê±°ë¦¬ ì´ìƒ ë²Œì–´ì§€ë©´ ë©ˆì¶¤ (FleeDistanceë³´ë‹¤ ì»¤ì•¼ í•¨, ì•ˆ ê·¸ëŸ¬ë©´ ê³„ì† ë–¨ë¦¼) */
 	UPROPERTY(EditAnywhere, Category = "Flight", meta = (ClampMin = "0.0"))
 	float FleeStopDistance = 1700.f;
 
-	/** ÀÌ ÆäÀÌÁîÀÏ ¶§¸¸ ½ÇÁ¦·Î ºñÇà/Ãß°İ ·ÎÁ÷ÀÌ ÀÛµ¿ÇÔ (±× ¿Ü ÆäÀÌÁî¿¡¼± ¾Æ¹«°Íµµ ¾È ÇÔ).
-	 * BTD_CheckPhase¶û ¶È°°ÀÌ EBossPhase Å¸ÀÔÀ¸·Î µÖ¼­, ¼ıÀÚ·Î Çò°¥¸± ÀÏ ¾øÀÌ
-	 * µå·Ó´Ù¿î¿¡¼­ "Phase 2"Ã³·³ ÀÌ¸§À¸·Î ¹Ù·Î °í¸¦ ¼ö ÀÖ°Ô ÇÔ */
+	/** ì´ í˜ì´ì¦ˆì¼ ë•Œë§Œ ì‹¤ì œë¡œ ë¹„í–‰/ì¶”ê²© ë¡œì§ì´ ì‘ë™í•¨ (ê·¸ ì™¸ í˜ì´ì¦ˆì—ì„  ì•„ë¬´ê²ƒë„ ì•ˆ í•¨).
+	 * BTD_CheckPhaseë‘ ë˜‘ê°™ì´ EBossPhase íƒ€ì…ìœ¼ë¡œ ë‘¬ì„œ, ìˆ«ìë¡œ í—·ê°ˆë¦´ ì¼ ì—†ì´
+	 * ë“œë¡­ë‹¤ìš´ì—ì„œ "Phase 2"ì²˜ëŸ¼ ì´ë¦„ìœ¼ë¡œ ë°”ë¡œ ê³ ë¥¼ ìˆ˜ ìˆê²Œ í•¨ */
 	UPROPERTY(EditAnywhere, Category = "Flight")
 	EBossPhase RequiredPhase = EBossPhase::Phase2;
 
-	/** ÆäÀÌÁî °ªÀ» ÀĞ¾î¿Ã ºí·¢º¸µå Å° ÀÌ¸§ */
+	/** í˜ì´ì¦ˆ ê°’ì„ ì½ì–´ì˜¬ ë¸”ë™ë³´ë“œ í‚¤ ì´ë¦„ */
 	UPROPERTY(EditAnywhere, Category = "Flight")
 	FName PhaseKeyName = TEXT("CurrentPhase");
 
@@ -72,6 +72,6 @@ private:
 	bool bIsChasing = false;
 	bool bIsFleeing = false;
 
-	/** 2ÆäÀÌÁî¿¡ Ã³À½ µé¾î¿Â ¼ø°£ ÇÑ ¹øÀº ¹«Á¶°Ç ¶°¿À¸£°Ô ÇÏ±â À§ÇÑ ÇÃ·¡±× (¾È ±×·¯¸é ±× ¼ø°£ ÇÃ·¹ÀÌ¾î°¡ °¡±îÀÌ ÀÖÀ¸¸é ±×³É ¹Ù´Ú¿¡ °è¼Ó ¼­ÀÖ°Ô µÊ) */
+	/** 2í˜ì´ì¦ˆì— ì²˜ìŒ ë“¤ì–´ì˜¨ ìˆœê°„ í•œ ë²ˆì€ ë¬´ì¡°ê±´ ë– ì˜¤ë¥´ê²Œ í•˜ê¸° ìœ„í•œ í”Œë˜ê·¸ (ì•ˆ ê·¸ëŸ¬ë©´ ê·¸ ìˆœê°„ í”Œë ˆì´ì–´ê°€ ê°€ê¹Œì´ ìˆìœ¼ë©´ ê·¸ëƒ¥ ë°”ë‹¥ì— ê³„ì† ì„œìˆê²Œ ë¨) */
 	bool bHasLiftedOff = false;
 };

@@ -1,4 +1,4 @@
-#include "BossBlackHole.h"
+ï»¿#include "BossBlackHole.h"
 #include "BossCharacterBase.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -12,7 +12,7 @@
 ABossBlackHole::ABossBlackHole()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.bStartWithTickEnabled = false; // ¹ßµ¿ Àü¿£ Tick ²¨µÒ
+	PrimaryActorTick.bStartWithTickEnabled = false; // ë°œë™ ì „ì—” Tick êº¼ë‘ 
 
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
@@ -20,52 +20,52 @@ ABossBlackHole::ABossBlackHole()
 	PullRadiusComponent = CreateDefaultSubobject<USphereComponent>(TEXT("PullRadiusComponent"));
 	PullRadiusComponent->SetupAttachment(Root);
 	PullRadiusComponent->SetSphereRadius(PullRadius);
-	// Ä³¸¯ÅÍ Ä¸½¶ÀÌ ±âº» Pawn ÇÁ·ÎÇÊÀÏ ¶§ ¼­·Î BlockÀ¸·Î ¾ù°¥·Á¼­
-	// Overlap ÀÌº¥Æ®°¡ ¾È ÅÍÁö´Â ¹®Á¦¸¦ ÇÇÇÏ·Á°í, ¾ğ¸®¾óÀÌ ¹Ì¸® ÁØºñÇØµĞ
-	// "¹«Á¶°Ç °ãÄ¡±â¸¸ ÇÏ´Â" Àü¿ë ÇÁ·ÎÇÊÀ» ¾¸. Æ®¸®°Å/ÆÇÁ¤ º¼·ı¿£ ÀÌ°Ô Á¤¼®.
+	// ìºë¦­í„° ìº¡ìŠì´ ê¸°ë³¸ Pawn í”„ë¡œí•„ì¼ ë•Œ ì„œë¡œ Blockìœ¼ë¡œ ì—‡ê°ˆë ¤ì„œ
+	// Overlap ì´ë²¤íŠ¸ê°€ ì•ˆ í„°ì§€ëŠ” ë¬¸ì œë¥¼ í”¼í•˜ë ¤ê³ , ì–¸ë¦¬ì–¼ì´ ë¯¸ë¦¬ ì¤€ë¹„í•´ë‘”
+	// "ë¬´ì¡°ê±´ ê²¹ì¹˜ê¸°ë§Œ í•˜ëŠ”" ì „ìš© í”„ë¡œí•„ì„ ì”€. íŠ¸ë¦¬ê±°/íŒì • ë³¼ë¥¨ì—” ì´ê²Œ ì •ì„.
 	PullRadiusComponent->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
 
-	// ´«¿¡ º¸ÀÌ´Â ±¸Ã¼. ÆÇÁ¤¿ëÀÌ ¾Æ´Ï¶ó ¼ø¼ö Àå½ÄÀÌ¶ó Äİ¸®ÀüÀº ²¨µÒ
+	// ëˆˆì— ë³´ì´ëŠ” êµ¬ì²´. íŒì •ìš©ì´ ì•„ë‹ˆë¼ ìˆœìˆ˜ ì¥ì‹ì´ë¼ ì½œë¦¬ì „ì€ êº¼ë‘ 
 	VisualSphere = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("VisualSphere"));
 	VisualSphere->SetupAttachment(Root);
 	VisualSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	VisualSphere->SetCastShadow(false);
-	VisualSphere->SetVisibility(false); // ¹ßµ¿ Àü¿£ ¼û±è
+	VisualSphere->SetVisibility(false); // ë°œë™ ì „ì—” ìˆ¨ê¹€
 
-	// ¿£Áø ±âº» Á¦°ø ±¸Ã¼ ¸Ş½Ã. ³ªÁß¿¡ ¾ÆÆ¼½ºÆ®°¡ ¸¸µç Àü¿ë ¸Ş½Ã·Î ±³Ã¼ °¡´É
+	// ì—”ì§„ ê¸°ë³¸ ì œê³µ êµ¬ì²´ ë©”ì‹œ. ë‚˜ì¤‘ì— ì•„í‹°ìŠ¤íŠ¸ê°€ ë§Œë“  ì „ìš© ë©”ì‹œë¡œ êµì²´ ê°€ëŠ¥
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMeshFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 	if (SphereMeshFinder.Succeeded())
 	{
 		VisualSphere->SetStaticMesh(SphereMeshFinder.Object);
 	}
 
-	// ¹ßµ¿ Áß °è¼Ó µµ´Â ·çÇÁ »ç¿îµå. Sound ¾Ö¼ÂÀº ¿©±â¼­ ÁöÁ¤ ¾È ÇÏ°í
-	// BP_BossBlackHoleÀÇ Components ÆĞ³Î¿¡¼­ Á÷Á¢ ÇÒ´çÇÔ (VisualSphere ¸Ş½Ã¶û °°Àº ¹æ½Ä)
+	// ë°œë™ ì¤‘ ê³„ì† ë„ëŠ” ë£¨í”„ ì‚¬ìš´ë“œ. Sound ì• ì…‹ì€ ì—¬ê¸°ì„œ ì§€ì • ì•ˆ í•˜ê³ 
+	// BP_BossBlackHoleì˜ Components íŒ¨ë„ì—ì„œ ì§ì ‘ í• ë‹¹í•¨ (VisualSphere ë©”ì‹œë‘ ê°™ì€ ë°©ì‹)
 	LoopingSound = CreateDefaultSubobject<UAudioComponent>(TEXT("LoopingSound"));
 	LoopingSound->SetupAttachment(Root);
-	LoopingSound->bAutoActivate = false; // BeginPlay/½ºÆù Áï½Ã Àç»ıµÇÁö ¾Ê°Ô, Activate È£Ãâ ½Ã¿¡¸¸ Àç»ı
+	LoopingSound->bAutoActivate = false; // BeginPlay/ìŠ¤í° ì¦‰ì‹œ ì¬ìƒë˜ì§€ ì•Šê²Œ, Activate í˜¸ì¶œ ì‹œì—ë§Œ ì¬ìƒ
 
-	// ¼Õ À§ ±¸Ã¼¸¦ Áß½ÉÀ¸·Î »ç¹æÀ¸·Î ºÎÇ®¾î¿À¸£´Â ÆÄµ¿. ÆòÆòÇÑ ¿ø¹İÀÌ ¾Æ´Ï¶ó
-	// ½ÇÁ¦·Î Ä¿Áö´Â ¾ãÀº ±¸ ²®Áú(shell)·Î ¸¸µé¾î¼­ "»ç¹æÀ¸·Î ÆÛÁø´Ù"´Â ´À³¦À» ÁÜ
+	// ì† ìœ„ êµ¬ì²´ë¥¼ ì¤‘ì‹¬ìœ¼ë¡œ ì‚¬ë°©ìœ¼ë¡œ ë¶€í’€ì–´ì˜¤ë¥´ëŠ” íŒŒë™. í‰í‰í•œ ì›ë°˜ì´ ì•„ë‹ˆë¼
+	// ì‹¤ì œë¡œ ì»¤ì§€ëŠ” ì–‡ì€ êµ¬ ê»ì§ˆ(shell)ë¡œ ë§Œë“¤ì–´ì„œ "ì‚¬ë°©ìœ¼ë¡œ í¼ì§„ë‹¤"ëŠ” ëŠë‚Œì„ ì¤Œ
 	ShockwaveDisc = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ShockwaveDisc"));
 	ShockwaveDisc->SetupAttachment(Root);
 	ShockwaveDisc->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	ShockwaveDisc->SetCastShadow(false);
-	ShockwaveDisc->SetVisibility(false); // ¹ßµ¿ Àü¿£ ¼û±è
+	ShockwaveDisc->SetVisibility(false); // ë°œë™ ì „ì—” ìˆ¨ê¹€
 
 	if (SphereMeshFinder.Succeeded())
 	{
 		ShockwaveDisc->SetStaticMesh(SphereMeshFinder.Object);
 	}
 
-	// ¸Ê ÀüÃ¼¸¦ °¨½Î´Â ¿ìÁÖ µ¼. ÀÌ ÄÄÆ÷³ÍÆ®´Â Static Mesh¸¦ ¿©±â¼­ ÁöÁ¤ÇÏÁö ¾Ê°í
-	// BP_BossBlackHoleÀÇ Components ÆĞ³Î¿¡¼­ ¾ÆÆ¼½ºÆ®°¡ SM_Dome °°Àº °É·Î Á÷Á¢ ³Ö°Ô ÇÔ
-	// (Two Sided Ã³¸®³ª UV°¡ ÀÌ¹Ì ±× ¸Ş½Ã ¾È¿¡ ¸Â°Ô ¼¼ÆÃµÅÀÖÀ» °Å¶ó ÄÚµå·Î °­Á¦ÇÒ ÇÊ¿ä ¾øÀ½)
+	// ë§µ ì „ì²´ë¥¼ ê°ì‹¸ëŠ” ìš°ì£¼ ë”. ì´ ì»´í¬ë„ŒíŠ¸ëŠ” Static Meshë¥¼ ì—¬ê¸°ì„œ ì§€ì •í•˜ì§€ ì•Šê³ 
+	// BP_BossBlackHoleì˜ Components íŒ¨ë„ì—ì„œ ì•„í‹°ìŠ¤íŠ¸ê°€ SM_Dome ê°™ì€ ê±¸ë¡œ ì§ì ‘ ë„£ê²Œ í•¨
+	// (Two Sided ì²˜ë¦¬ë‚˜ UVê°€ ì´ë¯¸ ê·¸ ë©”ì‹œ ì•ˆì— ë§ê²Œ ì„¸íŒ…ë¼ìˆì„ ê±°ë¼ ì½”ë“œë¡œ ê°•ì œí•  í•„ìš” ì—†ìŒ)
 	SkyboxDome = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SkyboxDome"));
 	SkyboxDome->SetupAttachment(Root);
 	SkyboxDome->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	SkyboxDome->SetCastShadow(false);
-	SkyboxDome->SetVisibility(false); // ¹ßµ¿ Àü¿£ ¼û±è
+	SkyboxDome->SetVisibility(false); // ë°œë™ ì „ì—” ìˆ¨ê¹€
 }
 
 void ABossBlackHole::BeginPlay()
@@ -76,23 +76,23 @@ void ABossBlackHole::BeginPlay()
 	PullRadiusComponent->OnComponentBeginOverlap.AddDynamic(this, &ABossBlackHole::OnPullRadiusBeginOverlap);
 	PullRadiusComponent->OnComponentEndOverlap.AddDynamic(this, &ABossBlackHole::OnPullRadiusEndOverlap);
 
-	// VisualSphere Å©±â´Â ¿©±â¼­ ÀÚµ¿ °è»êÇÏÁö ¾ÊÀ½.
-	// BP_BossBlackHoleÀÇ Class Defaults¿¡¼­ ¾ÆÆ¼½ºÆ®°¡ Transform > Scale·Î Á÷Á¢ Á¶ÀıÇÑ °ªÀ» ±×´ë·Î ¾¸.
+	// VisualSphere í¬ê¸°ëŠ” ì—¬ê¸°ì„œ ìë™ ê³„ì‚°í•˜ì§€ ì•ŠìŒ.
+	// BP_BossBlackHoleì˜ Class Defaultsì—ì„œ ì•„í‹°ìŠ¤íŠ¸ê°€ Transform > Scaleë¡œ ì§ì ‘ ì¡°ì ˆí•œ ê°’ì„ ê·¸ëŒ€ë¡œ ì”€.
 	if (BlackHoleMaterial)
 	{
 		VisualSphere->SetMaterial(0, BlackHoleMaterial);
 	}
 
-	// RangeDistortionSphere´Â ¹İ´ë·Î ÀÚµ¿ °è»êÇÔ - ½ÇÁ¦ ÆÇÁ¤ ¹İ°æ(PullRadius)ÀÌ¶û
-	// ½Ã°¢ÀûÀ¸·Î ¾î±ß³ª¸é ¾È µÇ´Â °ªÀÌ¶ó, ¿£Áø ±âº» ±¸Ã¼ ¸Ş½Ã(¹İÁö¸§ 50uu °íÁ¤)¸¦ ±âÁØÀ¸·Î ¿ª»ê
+	// RangeDistortionSphereëŠ” ë°˜ëŒ€ë¡œ ìë™ ê³„ì‚°í•¨ - ì‹¤ì œ íŒì • ë°˜ê²½(PullRadius)ì´ë‘
+	// ì‹œê°ì ìœ¼ë¡œ ì–´ê¸‹ë‚˜ë©´ ì•ˆ ë˜ëŠ” ê°’ì´ë¼, ì—”ì§„ ê¸°ë³¸ êµ¬ì²´ ë©”ì‹œ(ë°˜ì§€ë¦„ 50uu ê³ ì •)ë¥¼ ê¸°ì¤€ìœ¼ë¡œ ì—­ì‚°
 	if (ShockwaveMaterial)
 	{
 		ShockwaveDisc->SetMaterial(0, ShockwaveMaterial);
 	}
 
-	// ¿ìÁÖ µ¼ Å©±â¸¦ PullRadius¿¡ ¸ÂÃç ÀÚµ¿ °è»ê.
-	// GetBounds().SphereRadius·Î Áö±İ ºÙ¾îÀÖ´Â ¸Ş½ÃÀÇ "½ºÄÉÀÏ 1ÀÏ ¶§ ½ÇÁ¦ ¹İÁö¸§"À» Á÷Á¢ ÀĞ¾î¿Í¼­ ¿ª»êÇÏ±â ¶§¹®¿¡,
-	// SM_DomeÀÌµç ³ªÁß¿¡ ´Ù¸¥ ¸Ş½Ã·Î ¹Ù²îµç ÄÚµå ¼öÁ¤ ¾øÀÌ Ç×»ó Á¤È®ÇÏ°Ô ¸ÂÀ½
+	// ìš°ì£¼ ë” í¬ê¸°ë¥¼ PullRadiusì— ë§ì¶° ìë™ ê³„ì‚°.
+	// GetBounds().SphereRadiusë¡œ ì§€ê¸ˆ ë¶™ì–´ìˆëŠ” ë©”ì‹œì˜ "ìŠ¤ì¼€ì¼ 1ì¼ ë•Œ ì‹¤ì œ ë°˜ì§€ë¦„"ì„ ì§ì ‘ ì½ì–´ì™€ì„œ ì—­ì‚°í•˜ê¸° ë•Œë¬¸ì—,
+	// SM_Domeì´ë“  ë‚˜ì¤‘ì— ë‹¤ë¥¸ ë©”ì‹œë¡œ ë°”ë€Œë“  ì½”ë“œ ìˆ˜ì • ì—†ì´ í•­ìƒ ì •í™•í•˜ê²Œ ë§ìŒ
 	if (UStaticMesh* DomeMesh = SkyboxDome->GetStaticMesh())
 	{
 		const float DomeBaseRadius = DomeMesh->GetBounds().SphereRadius;
@@ -116,7 +116,7 @@ void ABossBlackHole::ActivateBlackHole()
 	VisualSphere->SetVisibility(true);
 	ShockwaveDisc->SetVisibility(true);
 	SkyboxDome->SetVisibility(true);
-	ShockwaveElapsed = 0.f; // ÆÄµ¿À» Ã³À½(Å©±â 0)ºÎÅÍ ´Ù½Ã ½ÃÀÛ
+	ShockwaveElapsed = 0.f; // íŒŒë™ì„ ì²˜ìŒ(í¬ê¸° 0)ë¶€í„° ë‹¤ì‹œ ì‹œì‘
 
 	if (LoopingSound && LoopingSound->Sound)
 	{
@@ -125,13 +125,13 @@ void ABossBlackHole::ActivateBlackHole()
 
 	UE_LOG(LogTemp, Log, TEXT("[BossBlackHole] Activated (Radius=%.0f, Speed=%.0f, Duration=%.1f)"), PullRadius, PullSpeed, Duration);
 
-	// BT°¡ Á¾·á È£ÃâÀ» ³õÄ¡´Â °æ¿ì¸¦ ´ëºñÇÑ ÀÚÃ¼ Å¸ÀÌ¸Ó
+	// BTê°€ ì¢…ë£Œ í˜¸ì¶œì„ ë†“ì¹˜ëŠ” ê²½ìš°ë¥¼ ëŒ€ë¹„í•œ ìì²´ íƒ€ì´ë¨¸
 	GetWorldTimerManager().SetTimer(DeactivateTimerHandle, this, &ABossBlackHole::DeactivateBlackHole, Duration, false);
 
-	// ¹ßµ¿µÇ´Â ÀÌ ¼ø°£ ÀÌ¹Ì ¹üÀ§ ¾È¿¡ ¼­ ÀÖ´Â Ä³¸¯ÅÍ°¡ ÀÖÀ» ¼ö ÀÖÀ½
-	// (¿¹: º¸½º ¼Õ¿¡ ½ºÆùµÇÀÚ¸¶ÀÚ ÇÃ·¹ÀÌ¾î°¡ ÀÌ¹Ì ±ÙÁ¢ÇØÀÖ´Â °æ¿ì).
-	// OnComponentBeginOverlapÀº "µé¾î¿À´Â ¼ø°£"¿¡¸¸ ÅÍÁö°í "ÀÌ¹Ì µé¾î¿Í ÀÖ´Â »óÅÂ"´Â ¸ø Àâ±â ¶§¹®¿¡,
-	// ¿©±â¼­ ÇÑ ¹ø Á÷Á¢ ÈÈ¾î¼­ ³õÄ¡Áö ¾Ê°Ô ÇÔ.
+	// ë°œë™ë˜ëŠ” ì´ ìˆœê°„ ì´ë¯¸ ë²”ìœ„ ì•ˆì— ì„œ ìˆëŠ” ìºë¦­í„°ê°€ ìˆì„ ìˆ˜ ìˆìŒ
+	// (ì˜ˆ: ë³´ìŠ¤ ì†ì— ìŠ¤í°ë˜ìë§ˆì í”Œë ˆì´ì–´ê°€ ì´ë¯¸ ê·¼ì ‘í•´ìˆëŠ” ê²½ìš°).
+	// OnComponentBeginOverlapì€ "ë“¤ì–´ì˜¤ëŠ” ìˆœê°„"ì—ë§Œ í„°ì§€ê³  "ì´ë¯¸ ë“¤ì–´ì™€ ìˆëŠ” ìƒíƒœ"ëŠ” ëª» ì¡ê¸° ë•Œë¬¸ì—,
+	// ì—¬ê¸°ì„œ í•œ ë²ˆ ì§ì ‘ í›‘ì–´ì„œ ë†“ì¹˜ì§€ ì•Šê²Œ í•¨.
 	TArray<AActor*> AlreadyOverlapping;
 	PullRadiusComponent->GetOverlappingActors(AlreadyOverlapping, ACharacter::StaticClass());
 	for (AActor* Actor : AlreadyOverlapping)
@@ -172,8 +172,8 @@ void ABossBlackHole::Tick(float DeltaTime)
 		return;
 	}
 
-	// ÆÄµ¿ ÇÑ »çÀÌÅ¬ = "Ä¿Áö´Â ½Ã°£(ShockwaveInterval)" + "½¬´Â ½Ã°£(ShockwaveGap)".
-	// ÀÌ ÀüÃ¼ ±æÀÌ¸¦ ³Ñ±â¸é Ã³À½ºÎÅÍ ´Ù½Ã ½ÃÀÛ -> ¹İº¹µÇ´Â ÆÄµ¿ »çÀÌ¿¡ ¸ØÃçÀÖ´Â ±¸°£ÀÌ »ı±è
+	// íŒŒë™ í•œ ì‚¬ì´í´ = "ì»¤ì§€ëŠ” ì‹œê°„(ShockwaveInterval)" + "ì‰¬ëŠ” ì‹œê°„(ShockwaveGap)".
+	// ì´ ì „ì²´ ê¸¸ì´ë¥¼ ë„˜ê¸°ë©´ ì²˜ìŒë¶€í„° ë‹¤ì‹œ ì‹œì‘ -> ë°˜ë³µë˜ëŠ” íŒŒë™ ì‚¬ì´ì— ë©ˆì¶°ìˆëŠ” êµ¬ê°„ì´ ìƒê¹€
 	const float TotalCycleLength = ShockwaveInterval + ShockwaveGap;
 	ShockwaveElapsed += DeltaTime;
 	if (ShockwaveElapsed >= TotalCycleLength)
@@ -181,19 +181,19 @@ void ABossBlackHole::Tick(float DeltaTime)
 		ShockwaveElapsed = 0.f;
 	}
 
-	constexpr float DefaultEngineSphereRadius = 50.f; // ¿£Áø ±âº» ±¸Ã¼ ¸Ş½ÃÀÇ ½ÇÁ¦ ¹İÁö¸§(uu)
+	constexpr float DefaultEngineSphereRadius = 50.f; // ì—”ì§„ ê¸°ë³¸ êµ¬ì²´ ë©”ì‹œì˜ ì‹¤ì œ ë°˜ì§€ë¦„(uu)
 	if (ShockwaveElapsed < ShockwaveInterval)
 	{
-		// ¾ÆÁ÷ "Ä¿Áö´Â ½Ã°£" ±¸°£ ¾È -> ÆÄµ¿ÀÌ ½ÇÁ¦·Î ¿òÁ÷ÀÌ´Â Áß
+		// ì•„ì§ "ì»¤ì§€ëŠ” ì‹œê°„" êµ¬ê°„ ì•ˆ -> íŒŒë™ì´ ì‹¤ì œë¡œ ì›€ì§ì´ëŠ” ì¤‘
 		const float ShockwaveProgress = ShockwaveElapsed / ShockwaveInterval; // 0~1
-		// (1 - Progress)¸¦ ½á¼­ ¹İ´ë·Î ¸¸µê: 0ÃÊÀÏ ¶© PullRadius(¹üÀ§ ³¡)¸¸Å­ Å©´Ù°¡,
-		// ShockwaveIntervalÃÊ°¡ Áö³ª¸é Å©±â 0(Áß½É)±îÁö ÁÙ¾îµê -> ¹Û¿¡¼­ ¾ÈÀ¸·Î »¡·Áµé¾î°¡´Â ÆÄµ¿
+		// (1 - Progress)ë¥¼ ì¨ì„œ ë°˜ëŒ€ë¡œ ë§Œë“¦: 0ì´ˆì¼ ë• PullRadius(ë²”ìœ„ ë)ë§Œí¼ í¬ë‹¤ê°€,
+		// ShockwaveIntervalì´ˆê°€ ì§€ë‚˜ë©´ í¬ê¸° 0(ì¤‘ì‹¬)ê¹Œì§€ ì¤„ì–´ë“¦ -> ë°–ì—ì„œ ì•ˆìœ¼ë¡œ ë¹¨ë ¤ë“¤ì–´ê°€ëŠ” íŒŒë™
 		const float CurrentWorldRadius = (1.f - ShockwaveProgress) * PullRadius;
 		ShockwaveDisc->SetRelativeScale3D(FVector(CurrentWorldRadius / DefaultEngineSphereRadius));
 	}
 	else
 	{
-		// "½¬´Â ½Ã°£" ±¸°£ -> Å©±â 0À¸·Î ¼û°ÜµÒ (ÆÄµ¿ÀÌ Àá±ñ ¾È º¸ÀÓ)
+		// "ì‰¬ëŠ” ì‹œê°„" êµ¬ê°„ -> í¬ê¸° 0ìœ¼ë¡œ ìˆ¨ê²¨ë‘  (íŒŒë™ì´ ì ê¹ ì•ˆ ë³´ì„)
 		ShockwaveDisc->SetRelativeScale3D(FVector::ZeroVector);
 	}
 
@@ -214,17 +214,17 @@ void ABossBlackHole::ApplyPullToCharacter(ACharacter* Character, float DeltaTime
 	const FVector PullDirection = (GetActorLocation() - Character->GetActorLocation()).GetSafeNormal();
 	const FVector PullVelocity = PullDirection * PullSpeed;
 
-	// ÇÃ·¹ÀÌ¾î°¡ ±× ¼ø°£ ½ÇÁ¦·Î ÀÌµ¿ÇÏ·Á´ø ¹æÇâ/¼¼±â.
-	// MaxWalkSpeed´Â °È±â(400)/¶Ù±â(650) »óÅÂ¿¡ µû¶ó ÀÌ¹Ì ÆÀ¿ø Ä³¸¯ÅÍ ÄÚµå¿¡¼­ ¹Ù²î¾î ÀÖÀ¸¹Ç·Î,
-	// ¿©±â¼­ ´Ù½Ã SprintSpeedÀÎÁö WalkSpeedÀÎÁö µû·Î ¾È ¹°¾îºÁµµ ÀÚµ¿À¸·Î ¹İ¿µµÈ´Ù.
+	// í”Œë ˆì´ì–´ê°€ ê·¸ ìˆœê°„ ì‹¤ì œë¡œ ì´ë™í•˜ë ¤ë˜ ë°©í–¥/ì„¸ê¸°.
+	// MaxWalkSpeedëŠ” ê±·ê¸°(400)/ë›°ê¸°(650) ìƒíƒœì— ë”°ë¼ ì´ë¯¸ íŒ€ì› ìºë¦­í„° ì½”ë“œì—ì„œ ë°”ë€Œì–´ ìˆìœ¼ë¯€ë¡œ,
+	// ì—¬ê¸°ì„œ ë‹¤ì‹œ SprintSpeedì¸ì§€ WalkSpeedì¸ì§€ ë”°ë¡œ ì•ˆ ë¬¼ì–´ë´ë„ ìë™ìœ¼ë¡œ ë°˜ì˜ëœë‹¤.
 	const FVector InputDir = Character->GetLastMovementInputVector();
 	const FVector PlayerIntendedVelocity = InputDir.IsNearlyZero()
 		? FVector::ZeroVector
 		: InputDir.GetSafeNormal() * MoveComp->MaxWalkSpeed;
 
-	// ´ç±è ¼Óµµ + ÇÃ·¹ÀÌ¾î°¡ ³»·Á´ø ¼Óµµ¸¦ ±×´ë·Î ÇÕ»ê.
-	// ¹İ´ë ¹æÇâÀ¸·Î ¶Ù¸é(Àü·ÂÁúÁÖ 650 > ´ç±è 500) º¤ÅÍ°¡ »ó¼âµÇ¾î ½ÇÁ¦·Î ºüÁ®³ª°¥ ¼ö ÀÖ°í,
-	// °È±â(400)¸¸À¸·Î´Â 500À» ¸ø ÀÌ°Ü¼­ °è¼Ó ²ø·Á°£´Ù.
+	// ë‹¹ê¹€ ì†ë„ + í”Œë ˆì´ì–´ê°€ ë‚´ë ¤ë˜ ì†ë„ë¥¼ ê·¸ëŒ€ë¡œ í•©ì‚°.
+	// ë°˜ëŒ€ ë°©í–¥ìœ¼ë¡œ ë›°ë©´(ì „ë ¥ì§ˆì£¼ 650 > ë‹¹ê¹€ 500) ë²¡í„°ê°€ ìƒì‡„ë˜ì–´ ì‹¤ì œë¡œ ë¹ ì ¸ë‚˜ê°ˆ ìˆ˜ ìˆê³ ,
+	// ê±·ê¸°(400)ë§Œìœ¼ë¡œëŠ” 500ì„ ëª» ì´ê²¨ì„œ ê³„ì† ëŒë ¤ê°„ë‹¤.
 	MoveComp->Velocity = PullVelocity + PlayerIntendedVelocity;
 }
 
@@ -233,13 +233,13 @@ void ABossBlackHole::OnPullRadiusBeginOverlap(UPrimitiveComponent* OverlappedCom
 {
 	if (ACharacter* Character = Cast<ACharacter>(OtherActor))
 	{
-		// º¸½º º»ÀÎ(AI ÄÁÆ®·Ñ·¯°¡ Á¶Á¾)ÀÌ³ª ´Ù¸¥ AI Ä³¸¯ÅÍ´Â ¹«½ÃÇÏ°í,
-		// ÇÃ·¹ÀÌ¾î°¡ Á÷Á¢ Á¶Á¾ÇÏ´Â Ä³¸¯ÅÍ¸¸ ´ç±è ´ë»óÀ¸·Î ÃßÀûÇÑ´Ù.
-		// ÀÌ°Ô ¾øÀ¸¸é ºí·¢È¦ÀÌ º¸½º À§Ä¡¿¡ ºÙ¾îÀÖÀ» ¶§ º¸½º ÀÚ½Åµµ ²ø¾î´ç±â·Á°í ÇØ¼­
-		// º¸½º AIÀÇ ÀÌµ¿À» ¸Å ÇÁ·¹ÀÓ ¹æÇØÇÏ°Ô µÈ´Ù.
-		// 1Â÷ ÇÊÅÍ: AI°¡ Á¶Á¾ÇÏ´Â º¸½º´Â Á¦¿Ü
-		// 2Â÷ ÇÊÅÍ(ÀÌÁß ¾ÈÀüÀåÄ¡): È¤½Ã Å×½ºÆ® Áß Possess µîÀ¸·Î º¸½º¸¦ »ç¶÷ÀÌ Á¶Á¾ÇÏ°Ô µÇ´õ¶óµµ,
-		// ABossCharacterBase °è¿­ÀÌ¸é ¾îÂ·µç ´ç±è ´ë»ó¿¡¼­ Á¦¿Ü
+		// ë³´ìŠ¤ ë³¸ì¸(AI ì»¨íŠ¸ë¡¤ëŸ¬ê°€ ì¡°ì¢…)ì´ë‚˜ ë‹¤ë¥¸ AI ìºë¦­í„°ëŠ” ë¬´ì‹œí•˜ê³ ,
+		// í”Œë ˆì´ì–´ê°€ ì§ì ‘ ì¡°ì¢…í•˜ëŠ” ìºë¦­í„°ë§Œ ë‹¹ê¹€ ëŒ€ìƒìœ¼ë¡œ ì¶”ì í•œë‹¤.
+		// ì´ê²Œ ì—†ìœ¼ë©´ ë¸”ë™í™€ì´ ë³´ìŠ¤ ìœ„ì¹˜ì— ë¶™ì–´ìˆì„ ë•Œ ë³´ìŠ¤ ìì‹ ë„ ëŒì–´ë‹¹ê¸°ë ¤ê³  í•´ì„œ
+		// ë³´ìŠ¤ AIì˜ ì´ë™ì„ ë§¤ í”„ë ˆì„ ë°©í•´í•˜ê²Œ ëœë‹¤.
+		// 1ì°¨ í•„í„°: AIê°€ ì¡°ì¢…í•˜ëŠ” ë³´ìŠ¤ëŠ” ì œì™¸
+		// 2ì°¨ í•„í„°(ì´ì¤‘ ì•ˆì „ì¥ì¹˜): í˜¹ì‹œ í…ŒìŠ¤íŠ¸ ì¤‘ Possess ë“±ìœ¼ë¡œ ë³´ìŠ¤ë¥¼ ì‚¬ëŒì´ ì¡°ì¢…í•˜ê²Œ ë˜ë”ë¼ë„,
+		// ABossCharacterBase ê³„ì—´ì´ë©´ ì–´ì¨Œë“  ë‹¹ê¹€ ëŒ€ìƒì—ì„œ ì œì™¸
 		if (Character->IsPlayerControlled() && !Character->IsA<ABossCharacterBase>())
 		{
 			OverlappingCharacter = Character;

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -11,9 +11,9 @@ class UMaterialInterface;
 class UAudioComponent;
 
 /**
- * º¸½º ÆÐÅÏ - ºí·¢È¦
- * ¹ßµ¿ ½Ã ÀÏÁ¤ ¹Ý°æ ¾ÈÀÇ Ä³¸¯ÅÍ¸¦ ÀÌ ¾×ÅÍ ¹æÇâÀ¸·Î ÀÏÁ¤ ¼Óµµ·Î ²ø¾î´ç±ä´Ù.
- * BTÀÇ BTT_BossBlackHoleÀÌ ActivateBlackHole() / DeactivateBlackHole()À» È£ÃâÇØ¼­ Á¦¾îÇÑ´Ù.
+ * ë³´ìŠ¤ íŒ¨í„´ - ë¸”ëž™í™€
+ * ë°œë™ ì‹œ ì¼ì • ë°˜ê²½ ì•ˆì˜ ìºë¦­í„°ë¥¼ ì´ ì•¡í„° ë°©í–¥ìœ¼ë¡œ ì¼ì • ì†ë„ë¡œ ëŒì–´ë‹¹ê¸´ë‹¤.
+ * BTì˜ BTT_BossBlackHoleì´ ActivateBlackHole() / DeactivateBlackHole()ì„ í˜¸ì¶œí•´ì„œ ì œì–´í•œë‹¤.
  */
 UCLASS()
 class VEILBREAK_API ABossBlackHole : public AActor
@@ -29,18 +29,18 @@ protected:
 public:
 	virtual void Tick(float DeltaTime) override;
 
-	/** BT Task¿¡¼­ È£ÃâÇÒ ÇÔ¼ö: ºí·¢È¦ ¹ßµ¿ ½ÃÀÛ */
+	/** BT Taskì—ì„œ í˜¸ì¶œí•  í•¨ìˆ˜: ë¸”ëž™í™€ ë°œë™ ì‹œìž‘ */
 	UFUNCTION(BlueprintCallable, Category = "BlackHole")
 	void ActivateBlackHole();
 
-	/** BT Task¿¡¼­ È£ÃâÇÒ ÇÔ¼ö: ºí·¢È¦ Á¾·á */
+	/** BT Taskì—ì„œ í˜¸ì¶œí•  í•¨ìˆ˜: ë¸”ëž™í™€ ì¢…ë£Œ */
 	UFUNCTION(BlueprintCallable, Category = "BlackHole")
 	void DeactivateBlackHole();
 
 	/**
-	 * BT Task¿¡¼­ ½ºÆù Á÷ÈÄ È£Ãâ: ÀÌ ºí·¢È¦ÀÌ ½ÇÁ¦·Î ¸î ÃÊ Áö¼ÓµÉÁö ¾Ë·ÁÁÜ.
-	 * BTÀÇ Active DurationÀÌ¶û ÀÌ °ªÀÌ ¾î±ß³ª¸é ¾È µÇ´Ï±î, BT°¡ °ªÀ» Á¤ÇÏ°í ¿©±â·Î ³Ñ°Ü¹Þ¾Æ ¾²´Â ±¸Á¶.
-	 * (¿¹Àü¿£ ÀÌ Å¬·¡½º ÀÚÃ¼ÀÇ ±âº»°ª DurationÀÌ¶û BTÀÇ Active DurationÀÌ µû·Î ³î¾Æ¼­ Ç×»ó ´õ ÂªÀº ÂÊÀÌ ÀÌ°Ü¹ö¸®´Â ¹ö±×°¡ ÀÖ¾úÀ½)
+	 * BT Taskì—ì„œ ìŠ¤í° ì§í›„ í˜¸ì¶œ: ì´ ë¸”ëž™í™€ì´ ì‹¤ì œë¡œ ëª‡ ì´ˆ ì§€ì†ë ì§€ ì•Œë ¤ì¤Œ.
+	 * BTì˜ Active Durationì´ëž‘ ì´ ê°’ì´ ì–´ê¸‹ë‚˜ë©´ ì•ˆ ë˜ë‹ˆê¹Œ, BTê°€ ê°’ì„ ì •í•˜ê³  ì—¬ê¸°ë¡œ ë„˜ê²¨ë°›ì•„ ì“°ëŠ” êµ¬ì¡°.
+	 * (ì˜ˆì „ì—” ì´ í´ëž˜ìŠ¤ ìžì²´ì˜ ê¸°ë³¸ê°’ Durationì´ëž‘ BTì˜ Active Durationì´ ë”°ë¡œ ë†€ì•„ì„œ í•­ìƒ ë” ì§§ì€ ìª½ì´ ì´ê²¨ë²„ë¦¬ëŠ” ë²„ê·¸ê°€ ìžˆì—ˆìŒ)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "BlackHole")
 	void SetDuration(float NewDuration) { Duration = NewDuration; }
@@ -54,83 +54,83 @@ protected:
 	void OnPullRadiusEndOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	/** ½ÇÁ¦ ´ç±è ¼Óµµ °è»ê ¹× Àû¿ë */
+	/** ì‹¤ì œ ë‹¹ê¹€ ì†ë„ ê³„ì‚° ë° ì ìš© */
 	void ApplyPullToCharacter(ACharacter* Character, float DeltaTime);
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole")
 	TObjectPtr<USceneComponent> Root;
 
-	/** ´ç±è ÆÇÁ¤ ¹üÀ§ (¿À¹ö·¦ Æ®¸®°Å) */
+	/** ë‹¹ê¹€ íŒì • ë²”ìœ„ (ì˜¤ë²„ëž© íŠ¸ë¦¬ê±°) */
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole")
 	TObjectPtr<USphereComponent> PullRadiusComponent;
 
-	/** ´«¿¡ º¸ÀÌ´Â ±¸Ã¼. ÆÇÁ¤ ¹üÀ§(PullRadiusComponent)¿Í´Â º°°³ÀÇ ¼ø¼ö ½Ã°¢ ¿ä¼Ò */
+	/** ëˆˆì— ë³´ì´ëŠ” êµ¬ì²´. íŒì • ë²”ìœ„(PullRadiusComponent)ì™€ëŠ” ë³„ê°œì˜ ìˆœìˆ˜ ì‹œê° ìš”ì†Œ */
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UStaticMeshComponent> VisualSphere;
 
-	/** ±¸Ã¼¿¡ ÀÔÈú ¸ÓÆ¼¸®¾ó. ³ªÁß¿¡ ¾ÆÆ¼½ºÆ®°¡ ¸¸µç ºí·¢È¦ Àü¿ë ¸ÓÆ¼¸®¾ó·Î ±³Ã¼ °¡´É. ºñ¿öµÎ¸é ¿£Áø ±âº» È¸»ö ±¸Ã¼·Î º¸ÀÓ */
+	/** êµ¬ì²´ì— ìž…íž ë¨¸í‹°ë¦¬ì–¼. ë‚˜ì¤‘ì— ì•„í‹°ìŠ¤íŠ¸ê°€ ë§Œë“  ë¸”ëž™í™€ ì „ìš© ë¨¸í‹°ë¦¬ì–¼ë¡œ êµì²´ ê°€ëŠ¥. ë¹„ì›Œë‘ë©´ ì—”ì§„ ê¸°ë³¸ íšŒìƒ‰ êµ¬ì²´ë¡œ ë³´ìž„ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UMaterialInterface> BlackHoleMaterial;
 
 	/**
-	 * ¼Õ À§ ±¸Ã¼¸¦ Áß½ÉÀ¸·Î ½ÇÁ¦·Î Ä¿Áö¸é¼­ ÆÇÁ¤ ¹üÀ§ ³¡±îÁö ÆÛÁ®³ª°¡´Â ÆÄµ¿ ¿ø¹Ý.
-	 * ¸ÓÆ¼¸®¾ó ¾ÈÀÇ ÆÐÅÏÀÌ ¾Æ´Ï¶ó, ÀÌ ÄÄÆ÷³ÍÆ®ÀÇ ½ÇÁ¦ ½ºÄÉÀÏ °ªÀ» Tick¿¡¼­ °è¼Ó Å°¿ü´Ù ¸®¼ÂÇÏ´Â ¹æ½Ä.
+	 * ì† ìœ„ êµ¬ì²´ë¥¼ ì¤‘ì‹¬ìœ¼ë¡œ ì‹¤ì œë¡œ ì»¤ì§€ë©´ì„œ íŒì • ë²”ìœ„ ëê¹Œì§€ í¼ì ¸ë‚˜ê°€ëŠ” íŒŒë™ ì›ë°˜.
+	 * ë¨¸í‹°ë¦¬ì–¼ ì•ˆì˜ íŒ¨í„´ì´ ì•„ë‹ˆë¼, ì´ ì»´í¬ë„ŒíŠ¸ì˜ ì‹¤ì œ ìŠ¤ì¼€ì¼ ê°’ì„ Tickì—ì„œ ê³„ì† í‚¤ì› ë‹¤ ë¦¬ì…‹í•˜ëŠ” ë°©ì‹.
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UStaticMeshComponent> ShockwaveDisc;
 
-	/** ÆÄµ¿ ¿ø¹Ý¿¡ ÀÔÈú ¸ÓÆ¼¸®¾ó. VisualSphere¿¡ ¾´ ¿Ö°î ¸ÓÆ¼¸®¾óÀ» ±×´ë·Î ³Ö¾îµµ µÊ */
+	/** íŒŒë™ ì›ë°˜ì— ìž…íž ë¨¸í‹°ë¦¬ì–¼. VisualSphereì— ì“´ ì™œê³¡ ë¨¸í‹°ë¦¬ì–¼ì„ ê·¸ëŒ€ë¡œ ë„£ì–´ë„ ë¨ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UMaterialInterface> ShockwaveMaterial;
 
-	/** ÆÄµ¿ÀÌ ÇÑ ¹ø ´Ù ÆÛÁö´Â(0 ¡æ PullRadius) µ¥ °É¸®´Â ½Ã°£(ÃÊ) */
+	/** íŒŒë™ì´ í•œ ë²ˆ ë‹¤ í¼ì§€ëŠ”(0 â†’ PullRadius) ë° ê±¸ë¦¬ëŠ” ì‹œê°„(ì´ˆ) */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "0.1"))
 	float ShockwaveInterval = 1.2f;
 
-	/** ÆÄµ¿ÀÌ ´Ù ³¡³­ ´ÙÀ½, ´Ù½Ã ½ÃÀÛÇÏ±â Àü±îÁö ½¬´Â ½Ã°£(ÃÊ). 0ÀÌ¸é Áö±ÝÃ³·³ ³¡³ªÀÚ¸¶ÀÚ ¹Ù·Î ´Ù½Ã ½ÃÀÛÇÔ */
+	/** íŒŒë™ì´ ë‹¤ ëë‚œ ë‹¤ìŒ, ë‹¤ì‹œ ì‹œìž‘í•˜ê¸° ì „ê¹Œì§€ ì‰¬ëŠ” ì‹œê°„(ì´ˆ). 0ì´ë©´ ì§€ê¸ˆì²˜ëŸ¼ ëë‚˜ìžë§ˆìž ë°”ë¡œ ë‹¤ì‹œ ì‹œìž‘í•¨ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "0.0"))
 	float ShockwaveGap = 0.5f;
 
-	/** Áö±Ý ÆÄµ¿ÀÌ ½ÃÀÛµÈ ÈÄ ¸î ÃÊ Áö³µ´ÂÁö (³»ºÎ °è»ê¿ë) */
+	/** ì§€ê¸ˆ íŒŒë™ì´ ì‹œìž‘ëœ í›„ ëª‡ ì´ˆ ì§€ë‚¬ëŠ”ì§€ (ë‚´ë¶€ ê³„ì‚°ìš©) */
 	float ShockwaveElapsed = 0.f;
 
 	/**
-	 * ¹ßµ¿ Áß °è¼Ó Àç»ýµÇ´Â ·çÇÁ »ç¿îµå (¿õ¿õ°Å¸®´Â ÈíÀÔÀ½ µî).
-	 * BP_BossBlackHoleÀÇ Components ÆÐ³Î¿¡¼­ ÀÌ ÄÄÆ÷³ÍÆ®¸¦ ¼±ÅÃÇÏ°í Sound ½½·Ô¿¡ ·çÇÁ »ç¿îµå¸¦ Á÷Á¢ ÁöÁ¤ÇÏ¸é µÊ
-	 * (Visual Sphere¿¡ Static Mesh ³Ö¾ú´ø °Í°ú °°Àº ¹æ½Ä).
+	 * ë°œë™ ì¤‘ ê³„ì† ìž¬ìƒë˜ëŠ” ë£¨í”„ ì‚¬ìš´ë“œ (ì›…ì›…ê±°ë¦¬ëŠ” í¡ìž…ìŒ ë“±).
+	 * BP_BossBlackHoleì˜ Components íŒ¨ë„ì—ì„œ ì´ ì»´í¬ë„ŒíŠ¸ë¥¼ ì„ íƒí•˜ê³  Sound ìŠ¬ë¡¯ì— ë£¨í”„ ì‚¬ìš´ë“œë¥¼ ì§ì ‘ ì§€ì •í•˜ë©´ ë¨
+	 * (Visual Sphereì— Static Mesh ë„£ì—ˆë˜ ê²ƒê³¼ ê°™ì€ ë°©ì‹).
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UAudioComponent> LoopingSound;
 
-	// ³ªÀÌ¾Æ°¡¶ó ÀÌÆåÆ®(»¡·Áµé¾î°¡´Â ÆÄÆ¼Å¬)´Â 2´Ü°è¿¡¼­ Ãß°¡ ¿¹Á¤.
+	// ë‚˜ì´ì•„ê°€ë¼ ì´íŽ™íŠ¸(ë¹¨ë ¤ë“¤ì–´ê°€ëŠ” íŒŒí‹°í´)ëŠ” 2ë‹¨ê³„ì—ì„œ ì¶”ê°€ ì˜ˆì •.
 
 	/**
-	 * ¹ßµ¿ Áß ¸Ê ÀüÃ¼¸¦ °¨½Î´Â ¿ìÁÖ µ¼(½ºÄ«ÀÌ¹Ú½ºÃ³·³ ¾È¿¡¼­ º¸¸é ¼º¿îÀÌ º¸ÀÌ´Â Å« ±¸).
-	 * ¼Õ À§ ±¸Ã¼³ª ÆÄµ¿ÀÌ¶û ´Þ¸® È­¸éÀ» °¡¸®´Â °Ô ¸ñÀûÀÌ ¾Æ´Ï¶ó, ¹æ ÀüÃ¼¸¦ "¿ìÁÖ ¾È"Ã³·³ º¸ÀÌ°Ô ÇÏ´Â ¹è°æ¿ë.
-	 * BP_BossBlackHoleÀÇ Components ÆÐ³Î¿¡¼­ Static Mesh¸¦ SM_Dome °°Àº °É·Î Á÷Á¢ ÁöÁ¤ÇÏ¸é µÊ.
+	 * ë°œë™ ì¤‘ ë§µ ì „ì²´ë¥¼ ê°ì‹¸ëŠ” ìš°ì£¼ ë”(ìŠ¤ì¹´ì´ë°•ìŠ¤ì²˜ëŸ¼ ì•ˆì—ì„œ ë³´ë©´ ì„±ìš´ì´ ë³´ì´ëŠ” í° êµ¬).
+	 * ì† ìœ„ êµ¬ì²´ë‚˜ íŒŒë™ì´ëž‘ ë‹¬ë¦¬ í™”ë©´ì„ ê°€ë¦¬ëŠ” ê²Œ ëª©ì ì´ ì•„ë‹ˆë¼, ë°© ì „ì²´ë¥¼ "ìš°ì£¼ ì•ˆ"ì²˜ëŸ¼ ë³´ì´ê²Œ í•˜ëŠ” ë°°ê²½ìš©.
+	 * BP_BossBlackHoleì˜ Components íŒ¨ë„ì—ì„œ Static Meshë¥¼ SM_Dome ê°™ì€ ê±¸ë¡œ ì§ì ‘ ì§€ì •í•˜ë©´ ë¨.
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "BlackHole|Visual")
 	TObjectPtr<UStaticMeshComponent> SkyboxDome;
 
 	/**
-	 * ¿ìÁÖ µ¼ÀÇ Å©±â¸¦ PullRadius(½ÇÁ¦ ´ç±è ÆÇÁ¤ ¹üÀ§) ´ëºñ ¸î ¹è·Î ÇÒÁö.
-	 * 1.0ÀÌ¸é µ¼ Ç¥¸éÀÌ µü ÆÇÁ¤ ¹üÀ§ ³¡¿¡ °ÉÄ§, 1.3 Á¤µµ·Î ¿©À¯¸¦ ÁÖ¸é ÇÃ·¹ÀÌ¾î°¡ ¾È¿¡¼­ µ¼ Ç¥¸éÀ» Á÷Á¢ º¸´Â ÀÏÀÌ Àû¾îÁü.
-	 * µ¼ÀÇ ½ÇÁ¦ ½ºÄÉÀÏ °è»êÀº ¸Þ½Ã ÀÚÃ¼ÀÇ ½ÇÁ¦ Å©±â(Bounds)¸¦ ÄÚµå¿¡¼­ ÀÐ¾î¿Í ÀÚµ¿À¸·Î Ã³¸®ÇÏ¹Ç·Î,
-	 * SM_DomeÀÌµç ´Ù¸¥ ¸Þ½Ã·Î ¹Ù²îµç ÀÌ ¹èÀ²¸¸ ½Å°æ ¾²¸é µÊ.
+	 * ìš°ì£¼ ë”ì˜ í¬ê¸°ë¥¼ PullRadius(ì‹¤ì œ ë‹¹ê¹€ íŒì • ë²”ìœ„) ëŒ€ë¹„ ëª‡ ë°°ë¡œ í• ì§€.
+	 * 1.0ì´ë©´ ë” í‘œë©´ì´ ë”± íŒì • ë²”ìœ„ ëì— ê±¸ì¹¨, 1.3 ì •ë„ë¡œ ì—¬ìœ ë¥¼ ì£¼ë©´ í”Œë ˆì´ì–´ê°€ ì•ˆì—ì„œ ë” í‘œë©´ì„ ì§ì ‘ ë³´ëŠ” ì¼ì´ ì ì–´ì§.
+	 * ë”ì˜ ì‹¤ì œ ìŠ¤ì¼€ì¼ ê³„ì‚°ì€ ë©”ì‹œ ìžì²´ì˜ ì‹¤ì œ í¬ê¸°(Bounds)ë¥¼ ì½”ë“œì—ì„œ ì½ì–´ì™€ ìžë™ìœ¼ë¡œ ì²˜ë¦¬í•˜ë¯€ë¡œ,
+	 * SM_Domeì´ë“  ë‹¤ë¥¸ ë©”ì‹œë¡œ ë°”ë€Œë“  ì´ ë°°ìœ¨ë§Œ ì‹ ê²½ ì“°ë©´ ë¨.
 	 */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Visual", meta = (ClampMin = "1.0"))
 	float SkyboxDomeRadiusMultiplier = 1.3f;
 
-	/** ´ç±è ÆÇÁ¤ ¹Ý°æ (uu ´ÜÀ§, ¾ð¸®¾ó ±âº» Ä³¸¯ÅÍ Ä¸½¶ ¹Ý°æÀÌ ¾à 34uu) */
+	/** ë‹¹ê¹€ íŒì • ë°˜ê²½ (uu ë‹¨ìœ„, ì–¸ë¦¬ì–¼ ê¸°ë³¸ ìºë¦­í„° ìº¡ìŠ ë°˜ê²½ì´ ì•½ 34uu) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
 	float PullRadius = 3600.f;
 
-	/** ²ø·Á°¡´Â ¼Óµµ. °È±â 400 < PullSpeed < ¶Ù±â 650 »çÀÌ·Î ¸ÂÃá ±âº»°ª */
+	/** ëŒë ¤ê°€ëŠ” ì†ë„. ê±·ê¸° 400 < PullSpeed < ë›°ê¸° 650 ì‚¬ì´ë¡œ ë§žì¶˜ ê¸°ë³¸ê°’ */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
 	float PullSpeed = 500.f;
 
-	/** ºí·¢È¦ Áö¼Ó ½Ã°£ (ÃÊ) */
+	/** ë¸”ëž™í™€ ì§€ì† ì‹œê°„ (ì´ˆ) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "BlackHole|Config")
 	float Duration = 5.f;
 
@@ -138,7 +138,7 @@ protected:
 
 	FTimerHandle DeactivateTimerHandle;
 
-	/** ÇöÀç ÆÇÁ¤ ¹üÀ§ ¾È¿¡ µé¾î¿Í ÀÖ´Â Ä³¸¯ÅÍ. ½Ì±Û ÇÃ·¹ÀÌ¾î¶ó ¿©·¯ ¸í °ü¸®ÇÒ ÇÊ¿ä°¡ ¾ø¾î¼­ ´ÜÀÏ Æ÷ÀÎÅÍ·Î °ü¸® */
+	/** í˜„ìž¬ íŒì • ë²”ìœ„ ì•ˆì— ë“¤ì–´ì™€ ìžˆëŠ” ìºë¦­í„°. ì‹±ê¸€ í”Œë ˆì´ì–´ë¼ ì—¬ëŸ¬ ëª… ê´€ë¦¬í•  í•„ìš”ê°€ ì—†ì–´ì„œ ë‹¨ì¼ í¬ì¸í„°ë¡œ ê´€ë¦¬ */
 	UPROPERTY()
 	TObjectPtr<ACharacter> OverlappingCharacter;
 };
