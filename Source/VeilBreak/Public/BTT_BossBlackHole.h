@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "BehaviorTree/BTTaskNode.h"
@@ -9,12 +9,12 @@ class USoundBase;
 class UAudioComponent;
 
 /**
- * BT Task - ºí·¢È¦ ¹ßµ¿
- * ½ÇÇàµÇ¸é º¸½º ¸Ó¸® À§¿¡ BossBlackHoleÀ» ½ºÆùÇÏ°í, ActiveDuration¸¸Å­ À¯ÁöÇÏ´Ù°¡
- * ÀÚµ¿À¸·Î Á¾·á(Deactivate + Destroy)ÇÏ°í Task¸¦ Succeeded·Î ³¡³½´Ù.
+ * BT Task - ë¸”ëž™í™€ ë°œë™
+ * ì‹¤í–‰ë˜ë©´ ë³´ìŠ¤ ë¨¸ë¦¬ ìœ„ì— BossBlackHoleì„ ìŠ¤í°í•˜ê³ , ActiveDurationë§Œí¼ ìœ ì§€í•˜ë‹¤ê°€
+ * ìžë™ìœ¼ë¡œ ì¢…ë£Œ(Deactivate + Destroy)í•˜ê³  Taskë¥¼ Succeededë¡œ ëë‚¸ë‹¤.
  *
- * BT ÀÔÀå¿¡¼­ ÀÌ ³ëµå´Â "ºí·¢È¦ ´Ù ¾µ ¶§±îÁö" °è¼Ó ½ÇÇà Áß(InProgress) »óÅÂ¸¦ À¯ÁöÇÏ´Â
- * '·¹ÀÌÅÏÆ®(latent) Task'´Ù. Wait ³ëµåÃ³·³ ¸î ÃÊ°£ Æ®¸® Èå¸§À» ºÙÀâ¾ÆµÎ´Â ³ëµå¶ó°í º¸¸é µÈ´Ù.
+ * BT ìž…ìž¥ì—ì„œ ì´ ë…¸ë“œëŠ” "ë¸”ëž™í™€ ë‹¤ ì“¸ ë•Œê¹Œì§€" ê³„ì† ì‹¤í–‰ ì¤‘(InProgress) ìƒíƒœë¥¼ ìœ ì§€í•˜ëŠ”
+ * 'ë ˆì´í„´íŠ¸(latent) Task'ë‹¤. Wait ë…¸ë“œì²˜ëŸ¼ ëª‡ ì´ˆê°„ íŠ¸ë¦¬ íë¦„ì„ ë¶™ìž¡ì•„ë‘ëŠ” ë…¸ë“œë¼ê³  ë³´ë©´ ëœë‹¤.
  */
 UCLASS()
 class VEILBREAK_API UBTT_BossBlackHole : public UBTTaskNode
@@ -29,44 +29,44 @@ public:
 	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 protected:
-	/** ½ºÆùÇÒ ºí·¢È¦ Å¬·¡½º. ÇÊ¿äÇÏ¸é BP ÀÚ½ÄÀ» ¸¸µé¾î¼­ ¿©±â¿¡ ÁöÁ¤ °¡´É */
+	/** ìŠ¤í°í•  ë¸”ëž™í™€ í´ëž˜ìŠ¤. í•„ìš”í•˜ë©´ BP ìžì‹ì„ ë§Œë“¤ì–´ì„œ ì—¬ê¸°ì— ì§€ì • ê°€ëŠ¥ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole")
 	TSubclassOf<ABossBlackHole> BlackHoleClass;
 
-	/** ºí·¢È¦À» À¯ÁöÇÒ ½Ã°£(ÃÊ). BossBlackHole ÀÚÃ¼ Duration °ª°ú ±»ÀÌ ¸ÂÃâ ÇÊ¿ä´Â ¾øÀ½ - ÀÌÂÊÀÌ ÃÖÁ¾ ±âÁØ */
+	/** ë¸”ëž™í™€ì„ ìœ ì§€í•  ì‹œê°„(ì´ˆ). BossBlackHole ìžì²´ Duration ê°’ê³¼ êµ³ì´ ë§žì¶œ í•„ìš”ëŠ” ì—†ìŒ - ì´ìª½ì´ ìµœì¢… ê¸°ì¤€ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole")
 	float ActiveDuration = 3.f;
 
-	/** º¸½º ¸Þ½Ã¿¡¼­ ºí·¢È¦À» ½ºÆùÇÒ ¼ÒÄÏ ÀÌ¸§. ¼ÒÄÏÀÌ ¾øÀ¸¸é Ä¸½¶ »ó´ÜÀ¸·Î ÀÚµ¿ ´ëÃ¼µÊ */
+	/** ë³´ìŠ¤ ë©”ì‹œì—ì„œ ë¸”ëž™í™€ì„ ìŠ¤í°í•  ì†Œì¼“ ì´ë¦„. ì†Œì¼“ì´ ì—†ìœ¼ë©´ ìº¡ìŠ ìƒë‹¨ìœ¼ë¡œ ìžë™ ëŒ€ì²´ë¨ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole")
 	FName SpawnSocketName = TEXT("head");
 
 	/**
-	 * ¼ÒÄÏ À§Ä¡ ±âÁØ ¿ÀÇÁ¼Â. ¼ÒÄÏ ÀÚ½ÅÀÇ ·ÎÄÃ ÁÂÇ¥°è ±âÁØÀÌ¶ó, ¼ÕÀÌ ¾î´À ¹æÇâÀ» ÇâÇÏµç
-	 * Ç×»ó "¼Õ¹Ù´Ú ±âÁØ ÀÌ ¹æÇâ"À¸·Î ÀÏÁ¤ÇÏ°Ô ¶ç¿öÁü. X: ¾Õ, Y: ¿·, Z: À§.
-	 * ¼ÒÄÏÀÌ ¼Õ ¾ÈÂÊ(»À ¿øÁ¡)¿¡ ÀÖ¾î¼­ ¸Þ½Ã¶û °ãÃÄ º¸ÀÏ ¶§ ÀÌ °ªÀ¸·Î ¶ç¿ì¸é µÊ.
+	 * ì†Œì¼“ ìœ„ì¹˜ ê¸°ì¤€ ì˜¤í”„ì…‹. ì†Œì¼“ ìžì‹ ì˜ ë¡œì»¬ ì¢Œí‘œê³„ ê¸°ì¤€ì´ë¼, ì†ì´ ì–´ëŠ ë°©í–¥ì„ í–¥í•˜ë“ 
+	 * í•­ìƒ "ì†ë°”ë‹¥ ê¸°ì¤€ ì´ ë°©í–¥"ìœ¼ë¡œ ì¼ì •í•˜ê²Œ ë„ì›Œì§. X: ì•ž, Y: ì˜†, Z: ìœ„.
+	 * ì†Œì¼“ì´ ì† ì•ˆìª½(ë¼ˆ ì›ì )ì— ìžˆì–´ì„œ ë©”ì‹œëž‘ ê²¹ì³ ë³´ì¼ ë•Œ ì´ ê°’ìœ¼ë¡œ ë„ìš°ë©´ ë¨.
 	 */
 	UPROPERTY(EditAnywhere, Category = "BlackHole")
 	FVector SpawnOffset = FVector(0.f, 0.f, 15.f);
 
-	/** ºí·¢È¦ ½ÃÀü ½Ã Àç»ýÇÒ »ç¿îµå. ºñ¿öµÎ¸é ¼Ò¸® ¾øÀ½ */
+	/** ë¸”ëž™í™€ ì‹œì „ ì‹œ ìž¬ìƒí•  ì‚¬ìš´ë“œ. ë¹„ì›Œë‘ë©´ ì†Œë¦¬ ì—†ìŒ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation")
 	TObjectPtr<USoundBase> ActivationSound;
 
-	/** »ç¿îµå Å©±â ¹èÀ². 1.0ÀÌ ¿øº» Å©±â, 0.5¸é Àý¹Ý, 2.0ÀÌ¸é µÎ ¹è */
+	/** ì‚¬ìš´ë“œ í¬ê¸° ë°°ìœ¨. 1.0ì´ ì›ë³¸ í¬ê¸°, 0.5ë©´ ì ˆë°˜, 2.0ì´ë©´ ë‘ ë°° */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation", meta = (ClampMin = "0.0"))
 	float ActivationSoundVolume = 1.f;
 
-	/** ºí·¢È¦ ÄÑÁ®ÀÖ´Â µ¿¾È °è¼Ó ¹Ýº¹ Àç»ýÇÒ »ç¿îµå (¿õ¿õ°Å¸®´Â ¼Ò¸® µî). DurationÀÌ ³¡³ª¸é ÀÚµ¿À¸·Î ¸ØÃã */
+	/** ë¸”ëž™í™€ ì¼œì ¸ìžˆëŠ” ë™ì•ˆ ê³„ì† ë°˜ë³µ ìž¬ìƒí•  ì‚¬ìš´ë“œ (ì›…ì›…ê±°ë¦¬ëŠ” ì†Œë¦¬ ë“±). Durationì´ ëë‚˜ë©´ ìžë™ìœ¼ë¡œ ë©ˆì¶¤ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation")
 	TObjectPtr<USoundBase> LoopingSound;
 
-	/** ¹Ýº¹ »ç¿îµå Å©±â ¹èÀ² */
+	/** ë°˜ë³µ ì‚¬ìš´ë“œ í¬ê¸° ë°°ìœ¨ */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation", meta = (ClampMin = "0.0"))
 	float LoopingSoundVolume = 1.f;
 
 private:
-	/** ÀÌ Task ÇÏ³ª°¡ ½ÇÇàµÇ´Â µ¿¾È À¯ÁöÇØ¾ß ÇÏ´Â ÀÓ½Ã µ¥ÀÌÅÍ */
+	/** ì´ Task í•˜ë‚˜ê°€ ì‹¤í–‰ë˜ëŠ” ë™ì•ˆ ìœ ì§€í•´ì•¼ í•˜ëŠ” ìž„ì‹œ ë°ì´í„° */
 	struct FBTBlackHoleMemory
 	{
 		TWeakObjectPtr<ABossBlackHole> SpawnedBlackHole;

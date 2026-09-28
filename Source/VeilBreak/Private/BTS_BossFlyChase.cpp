@@ -1,4 +1,4 @@
-#include "BTS_BossFlyChase.h"
+ï»¿#include "BTS_BossFlyChase.h"
 #include "AIController.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
@@ -8,7 +8,7 @@ UBTS_BossFlyChase::UBTS_BossFlyChase()
 {
 	NodeName = TEXT("BossFlyChase");
 
-	// µµÂø/°Å¸® Ã¼Å©´Â ¸Å ÇÁ·¹ÀÓ ¾È ÇØµµ ÃæºĞÇÏ¹Ç·Î 0.2ÃÊ¸¶´Ù ÇÑ ¹ø¾¿¸¸ °»½Å
+	// ë„ì°©/ê±°ë¦¬ ì²´í¬ëŠ” ë§¤ í”„ë ˆì„ ì•ˆ í•´ë„ ì¶©ë¶„í•˜ë¯€ë¡œ 0.2ì´ˆë§ˆë‹¤ í•œ ë²ˆì”©ë§Œ ê°±ì‹ 
 	Interval = 0.2f;
 	RandomDeviation = 0.f;
 }
@@ -19,8 +19,8 @@ void UBTS_BossFlyChase::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint
 	bIsChasing = false;
 	bIsFleeing = false;
 	bHasLiftedOff = false;
-	// ºñÇà ¸ğµå ÀüÈ¯Àº ¿©±â¼­ ¾È ÇÔ - °ÔÀÓ ½ÃÀÛ(1ÆäÀÌÁî)ºÎÅÍ ÀÌ ³ëµå°¡ Ç×»ó È°¼º »óÅÂ¶ó¼­,
-	// ¿©±â¼­ ¹Ù·Î ÄÑ¹ö¸®¸é 1ÆäÀÌÁîºÎÅÍ ³¯°Ô µÊ. ½ÇÁ¦ ÀüÈ¯Àº TickNode¿¡¼­ ÆäÀÌÁî Ã¼Å© ÈÄ Ã³¸®ÇÔ
+	// ë¹„í–‰ ëª¨ë“œ ì „í™˜ì€ ì—¬ê¸°ì„œ ì•ˆ í•¨ - ê²Œì„ ì‹œì‘(1í˜ì´ì¦ˆ)ë¶€í„° ì´ ë…¸ë“œê°€ í•­ìƒ í™œì„± ìƒíƒœë¼ì„œ,
+	// ì—¬ê¸°ì„œ ë°”ë¡œ ì¼œë²„ë¦¬ë©´ 1í˜ì´ì¦ˆë¶€í„° ë‚ ê²Œ ë¨. ì‹¤ì œ ì „í™˜ì€ TickNodeì—ì„œ í˜ì´ì¦ˆ ì²´í¬ í›„ ì²˜ë¦¬í•¨
 }
 
 void UBTS_BossFlyChase::OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -45,16 +45,16 @@ void UBTS_BossFlyChase::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 		return;
 	}
 
-	// ÁöÁ¤ÇÑ ÆäÀÌÁî°¡ ¾Æ´Ï¸é ¾Æ¹«°Íµµ ¾È ÇÔ. BTD_CheckPhase¶û ¿ÏÀüÈ÷ °°Àº ¹æ½ÄÀ¸·Î ºñ±³ÇÔ
-	// (BlackboardÀÇ CurrentPhase´Â Int·Î ÀúÀåµÇ¾î ÀÖ°í, EBossPhase¸¦ int32·Î Ä³½ºÆÃÇØ¼­ ºñ±³)
+	// ì§€ì •í•œ í˜ì´ì¦ˆê°€ ì•„ë‹ˆë©´ ì•„ë¬´ê²ƒë„ ì•ˆ í•¨. BTD_CheckPhaseë‘ ì™„ì „íˆ ê°™ì€ ë°©ì‹ìœ¼ë¡œ ë¹„êµí•¨
+	// (Blackboardì˜ CurrentPhaseëŠ” Intë¡œ ì €ì¥ë˜ì–´ ìˆê³ , EBossPhaseë¥¼ int32ë¡œ ìºìŠ¤íŒ…í•´ì„œ ë¹„êµ)
 	const int32 CurrentPhase = Blackboard->GetValueAsInt(PhaseKeyName);
 	if (CurrentPhase != static_cast<int32>(RequiredPhase))
 	{
 		return;
 	}
 
-	// 2ÆäÀÌÁî¿¡ ¸· µé¾î¿Â ¼ø°£¿¡µµ, ¾ÆÁ÷ ºñÇà ¸ğµå°¡ ¾Æ´Ï¸é ¿©±â¼­ ÀüÈ¯.
-	// ÀÌ¹Ì FlyingÀÌ¸é ¸Å¹ø ´Ù½Ã È£ÃâÇØµµ ¹«ÇØÇØ¼­ Á¶°Ç ¾øÀÌ ±×³É º¸ÀåÇØµÒ
+	// 2í˜ì´ì¦ˆì— ë§‰ ë“¤ì–´ì˜¨ ìˆœê°„ì—ë„, ì•„ì§ ë¹„í–‰ ëª¨ë“œê°€ ì•„ë‹ˆë©´ ì—¬ê¸°ì„œ ì „í™˜.
+	// ì´ë¯¸ Flyingì´ë©´ ë§¤ë²ˆ ë‹¤ì‹œ í˜¸ì¶œí•´ë„ ë¬´í•´í•´ì„œ ì¡°ê±´ ì—†ì´ ê·¸ëƒ¥ ë³´ì¥í•´ë‘ 
 	if (UCharacterMovementComponent* MoveComp = Boss->FindComponentByClass<UCharacterMovementComponent>())
 	{
 		if (MoveComp->MovementMode != MOVE_Flying)
@@ -64,8 +64,8 @@ void UBTS_BossFlyChase::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 		}
 	}
 
-	// 2ÆäÀÌÁî µé¾î¿Â Ã¹ ¼ø°£, ÇÃ·¹ÀÌ¾î°¡ ÀÌ¹Ì °¡±îÀÌ ÀÖ¾î¼­ Ãß°İ ·ÎÁ÷ÀÌ ¾È ÄÑÁö´õ¶óµµ
-	// ¹«Á¶°Ç ÇÑ ¹øÀº Á¦ÀÚ¸®¿¡¼­ À§·Î ¶°¿À¸£°Ô ÇÔ (¾È ±×·¯¸é ¹Ù´Ú¿¡ ±×´ë·Î ¼­ÀÖ´Â Ã¤ Flying ¸ğµå¸¸ ÄÑÁø ÀÌ»óÇÑ »óÅÂ°¡ µÊ)
+	// 2í˜ì´ì¦ˆ ë“¤ì–´ì˜¨ ì²« ìˆœê°„, í”Œë ˆì´ì–´ê°€ ì´ë¯¸ ê°€ê¹Œì´ ìˆì–´ì„œ ì¶”ê²© ë¡œì§ì´ ì•ˆ ì¼œì§€ë”ë¼ë„
+	// ë¬´ì¡°ê±´ í•œ ë²ˆì€ ì œìë¦¬ì—ì„œ ìœ„ë¡œ ë– ì˜¤ë¥´ê²Œ í•¨ (ì•ˆ ê·¸ëŸ¬ë©´ ë°”ë‹¥ì— ê·¸ëŒ€ë¡œ ì„œìˆëŠ” ì±„ Flying ëª¨ë“œë§Œ ì¼œì§„ ì´ìƒí•œ ìƒíƒœê°€ ë¨)
 	if (!bHasLiftedOff)
 	{
 		const FVector LiftOffDestination = Boss->GetActorLocation() + FVector(0.f, 0.f, FlightAltitude);
@@ -80,7 +80,7 @@ void UBTS_BossFlyChase::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 		bHasLiftedOff = true;
 	}
 
-	// BTS_UpdateBossContext(È²½Â¿ë´ÔÀÌ ÀÌ¹Ì ¸¸µé¾îµĞ ¼­ºñ½º)°¡ ¸Å ÇÁ·¹ÀÓ °»½ÅÇØÁÖ´Â °ªÀ» ±×´ë·Î ÀĞÀ½
+	// BTS_UpdateBossContext(í™©ìŠ¹ìš©ë‹˜ì´ ì´ë¯¸ ë§Œë“¤ì–´ë‘” ì„œë¹„ìŠ¤)ê°€ ë§¤ í”„ë ˆì„ ê°±ì‹ í•´ì£¼ëŠ” ê°’ì„ ê·¸ëŒ€ë¡œ ì½ìŒ
 	const float TargetDistance = Blackboard->GetValueAsFloat(TEXT("TargetDistance"));
 	AActor* TargetActor = Cast<AActor>(Blackboard->GetValueAsObject(TEXT("TargetActor")));
 	if (!TargetActor)
@@ -88,11 +88,11 @@ void UBTS_BossFlyChase::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 		return;
 	}
 
-	// µµ¸Á »óÅÂ ÀüÈ¯ (È÷½ºÅ×¸®½Ã½º: ½ÃÀÛ ±âÁØ FleeDistance, ¸ØÃß´Â ±âÁØ FleeStopDistance)
+	// ë„ë§ ìƒíƒœ ì „í™˜ (íˆìŠ¤í…Œë¦¬ì‹œìŠ¤: ì‹œì‘ ê¸°ì¤€ FleeDistance, ë©ˆì¶”ëŠ” ê¸°ì¤€ FleeStopDistance)
 	if (!bIsFleeing && TargetDistance < FleeDistance)
 	{
 		bIsFleeing = true;
-		bIsChasing = false; // µµ¸Á ½ÃÀÛÇÏ¸é Ãß°İ ÁßÀÌ¾ú´õ¶óµµ Ãë¼Ò
+		bIsChasing = false; // ë„ë§ ì‹œì‘í•˜ë©´ ì¶”ê²© ì¤‘ì´ì—ˆë”ë¼ë„ ì·¨ì†Œ
 	}
 	else if (bIsFleeing && TargetDistance >= FleeStopDistance)
 	{
@@ -102,14 +102,14 @@ void UBTS_BossFlyChase::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 
 	if (bIsFleeing)
 	{
-		// ÇÃ·¹ÀÌ¾î -> º¸½º ¹æÇâ(¼öÆò¸¸)À¸·Î ¹Ğ·Á³ª´Â ¸ñÀûÁö °è»ê.
-		// ¸ñÇ¥ ÁöÁ¡Àº "ÇÃ·¹ÀÌ¾î ±âÁØÀ¸·Î FleeStopDistance¸¸Å­ ¶³¾îÁø ÀÚ¸®"·Î Àâ¾Æ¼­,
-		// µµ¸ÁÀÌ ³¡³ª´Â ÁöÁ¡(FleeStopDistance)±îÁö ÀÚ¿¬½º·´°Ô ¹Ğ·Á³ª°Ô ÇÔ
+		// í”Œë ˆì´ì–´ -> ë³´ìŠ¤ ë°©í–¥(ìˆ˜í‰ë§Œ)ìœ¼ë¡œ ë°€ë ¤ë‚˜ëŠ” ëª©ì ì§€ ê³„ì‚°.
+		// ëª©í‘œ ì§€ì ì€ "í”Œë ˆì´ì–´ ê¸°ì¤€ìœ¼ë¡œ FleeStopDistanceë§Œí¼ ë–¨ì–´ì§„ ìë¦¬"ë¡œ ì¡ì•„ì„œ,
+		// ë„ë§ì´ ëë‚˜ëŠ” ì§€ì (FleeStopDistance)ê¹Œì§€ ìì—°ìŠ¤ëŸ½ê²Œ ë°€ë ¤ë‚˜ê²Œ í•¨
 		FVector AwayDirection = Boss->GetActorLocation() - TargetActor->GetActorLocation();
 		AwayDirection.Z = 0.f;
 		if (AwayDirection.IsNearlyZero())
 		{
-			// º¸½º°¡ ÇÃ·¹ÀÌ¾î ¹Ù·Î À§(¼öÆò °Å¸® 0)¿¡ ÀÖÀ¸¸é ¹æÇâÀÌ ¾È Á¤ÇØÁö´Ï, º¸°í ÀÖ´Â ¹İ´ë ¹æÇâÀ¸·Î ´ëÃ¼
+			// ë³´ìŠ¤ê°€ í”Œë ˆì´ì–´ ë°”ë¡œ ìœ„(ìˆ˜í‰ ê±°ë¦¬ 0)ì— ìˆìœ¼ë©´ ë°©í–¥ì´ ì•ˆ ì •í•´ì§€ë‹ˆ, ë³´ê³  ìˆëŠ” ë°˜ëŒ€ ë°©í–¥ìœ¼ë¡œ ëŒ€ì²´
 			AwayDirection = -Boss->GetActorForwardVector();
 			AwayDirection.Z = 0.f;
 		}
@@ -124,20 +124,20 @@ void UBTS_BossFlyChase::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 			/*bProjectDestinationToNavigation=*/ false,
 			/*bCanStrafe=*/ true
 		);
-		return; // µµ¸Á ÁßÀÏ ¶© Ãß°İ ·ÎÁ÷Àº ¾Æ¿¹ ¾È º½ (¿ì¼±¼øÀ§: µµ¸Á > Ãß°İ)
+		return; // ë„ë§ ì¤‘ì¼ ë• ì¶”ê²© ë¡œì§ì€ ì•„ì˜ˆ ì•ˆ ë´„ (ìš°ì„ ìˆœìœ„: ë„ë§ > ì¶”ê²©)
 	}
 
 	if (!bIsChasing && TargetDistance > ChaseStartDistance)
 	{
-		// ÇÃ·¹ÀÌ¾î À§Ä¡º¸´Ù FlightAltitude¸¸Å­ À§¸¦ ¸ñÀûÁö·Î ÀâÀ½.
-		// bProjectDestinationToNavigationÀ» false·Î µÖ¼­, ¸ñÀûÁö°¡ ¹Ù´Ú(NavMesh) ³ôÀÌ·Î
-		// °­Á¦·Î ´­¸®Áö ¾Ê°í °øÁß ±× À§Ä¡ ±×´ë·Î À¯ÁöµÇ°Ô ÇÔ
+		// í”Œë ˆì´ì–´ ìœ„ì¹˜ë³´ë‹¤ FlightAltitudeë§Œí¼ ìœ„ë¥¼ ëª©ì ì§€ë¡œ ì¡ìŒ.
+		// bProjectDestinationToNavigationì„ falseë¡œ ë‘¬ì„œ, ëª©ì ì§€ê°€ ë°”ë‹¥(NavMesh) ë†’ì´ë¡œ
+		// ê°•ì œë¡œ ëˆŒë¦¬ì§€ ì•Šê³  ê³µì¤‘ ê·¸ ìœ„ì¹˜ ê·¸ëŒ€ë¡œ ìœ ì§€ë˜ê²Œ í•¨
 		const FVector Destination = TargetActor->GetActorLocation() + FVector(0.f, 0.f, FlightAltitude);
 		AIController->MoveToLocation(
 			Destination,
 			AcceptanceRadius,
 			/*bStopOnOverlap=*/ false,
-			// NavMesh´Â ¹Ù´Ú¿¡¸¸ »ı¼ºµÇ°í °øÁß¿£ ¾È »ı±â±â ¶§¹®¿¡, Á÷¼±À¸·Î ³¯¾Æ°¡°Ô ÇÔ
+			// NavMeshëŠ” ë°”ë‹¥ì—ë§Œ ìƒì„±ë˜ê³  ê³µì¤‘ì—” ì•ˆ ìƒê¸°ê¸° ë•Œë¬¸ì—, ì§ì„ ìœ¼ë¡œ ë‚ ì•„ê°€ê²Œ í•¨
 			/*bUsePathfinding=*/ false,
 			/*bProjectDestinationToNavigation=*/ false,
 			/*bCanStrafe=*/ true
@@ -151,7 +151,7 @@ void UBTS_BossFlyChase::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 	}
 	else if (bIsChasing)
 	{
-		// Ãß°İ Áß¿£ ÇÃ·¹ÀÌ¾î°¡ °è¼Ó ¿òÁ÷ÀÌ´Ï, ¸ñÀûÁöµµ ¸Å Æ½ °»½ÅÇØÁà¾ß °è¼Ó µû¶ó°¨
+		// ì¶”ê²© ì¤‘ì—” í”Œë ˆì´ì–´ê°€ ê³„ì† ì›€ì§ì´ë‹ˆ, ëª©ì ì§€ë„ ë§¤ í‹± ê°±ì‹ í•´ì¤˜ì•¼ ê³„ì† ë”°ë¼ê°
 		const FVector Destination = TargetActor->GetActorLocation() + FVector(0.f, 0.f, FlightAltitude);
 		AIController->MoveToLocation(
 			Destination,
@@ -164,13 +164,13 @@ void UBTS_BossFlyChase::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeM
 	}
 	else
 	{
-		// Ãß°İµµ µµ¸Áµµ ¾Æ´Ñ "°¡¸¸È÷ ¶°ÀÖ´Â" »óÅÂ.
-		// ¼öÆò À§Ä¡(X, Y)´Â Áö±İ ÀÖ´Â ÀÚ¸® ±×´ë·Î µÎ°í, ³ôÀÌ(Z)¸¸ ÇÃ·¹ÀÌ¾î ±âÁØÀ¸·Î °è¼Ó ¸ÂÃçÁÜ.
-		// ¾È ±×·¯¸é ÇÃ·¹ÀÌ¾î°¡ ¾Æ·¡·Î ³»·Á°¡µµ º¸½º´Â ¿¹Àü ³ôÀÌ¿¡ °è¼Ó ¶°ÀÖ°Ô µÊ
+		// ì¶”ê²©ë„ ë„ë§ë„ ì•„ë‹Œ "ê°€ë§Œíˆ ë– ìˆëŠ”" ìƒíƒœ.
+		// ìˆ˜í‰ ìœ„ì¹˜(X, Y)ëŠ” ì§€ê¸ˆ ìˆëŠ” ìë¦¬ ê·¸ëŒ€ë¡œ ë‘ê³ , ë†’ì´(Z)ë§Œ í”Œë ˆì´ì–´ ê¸°ì¤€ìœ¼ë¡œ ê³„ì† ë§ì¶°ì¤Œ.
+		// ì•ˆ ê·¸ëŸ¬ë©´ í”Œë ˆì´ì–´ê°€ ì•„ë˜ë¡œ ë‚´ë ¤ê°€ë„ ë³´ìŠ¤ëŠ” ì˜ˆì „ ë†’ì´ì— ê³„ì† ë– ìˆê²Œ ë¨
 		const FVector CurrentLocation = Boss->GetActorLocation();
 		const float DesiredZ = TargetActor->GetActorLocation().Z + FlightAltitude;
 
-		// ÀÌ¹Ì °ÅÀÇ ¸Â´Â ³ôÀÌ¸é ¸Å Æ½ ÀÌµ¿ ¸í·ÉÀ» ´Ù½Ã ¾È º¸³»¼­, ºÒÇÊ¿äÇÏ°Ô Èçµé¸®Áö ¾Ê°Ô ÇÔ
+		// ì´ë¯¸ ê±°ì˜ ë§ëŠ” ë†’ì´ë©´ ë§¤ í‹± ì´ë™ ëª…ë ¹ì„ ë‹¤ì‹œ ì•ˆ ë³´ë‚´ì„œ, ë¶ˆí•„ìš”í•˜ê²Œ í”ë“¤ë¦¬ì§€ ì•Šê²Œ í•¨
 		if (!FMath::IsNearlyEqual(CurrentLocation.Z, DesiredZ, AcceptanceRadius))
 		{
 			const FVector HeightOnlyDestination(CurrentLocation.X, CurrentLocation.Y, DesiredZ);

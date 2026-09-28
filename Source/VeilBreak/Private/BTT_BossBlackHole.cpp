@@ -1,4 +1,4 @@
-#include "BTT_BossBlackHole.h"
+ï»¿#include "BTT_BossBlackHole.h"
 #include "BossBlackHole.h"
 #include "BossCharacterBase.h"
 #include "AIController.h"
@@ -11,10 +11,10 @@
 
 UBTT_BossBlackHole::UBTT_BossBlackHole()
 {
-	// BT ¿¡µğÅÍÀÇ New Task ¸ñ·Ï°ú Æ®¸® ³ëµå¿¡ Ç¥½ÃµÉ ÀÌ¸§
+	// BT ì—ë””í„°ì˜ New Task ëª©ë¡ê³¼ íŠ¸ë¦¬ ë…¸ë“œì— í‘œì‹œë  ì´ë¦„
 	NodeName = TEXT("BossBlackHole");
 
-	// TickTask¸¦ ½ÇÁ¦·Î È£Ãâ¹ŞÀ¸·Á¸é ÀÌ ÇÃ·¡±×°¡ ÄÑÁ® ÀÖ¾î¾ß ÇÔ
+	// TickTaskë¥¼ ì‹¤ì œë¡œ í˜¸ì¶œë°›ìœ¼ë ¤ë©´ ì´ í”Œë˜ê·¸ê°€ ì¼œì ¸ ìˆì–´ì•¼ í•¨
 	bNotifyTick = true;
 }
 
@@ -26,7 +26,7 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 
 	if (!BlackHoleClass)
 	{
-		// Å¬·¡½º°¡ ÁöÁ¤ ¾È µÈ »óÅÂ - BT ³ëµå Details ÆĞ³Î¿¡¼­ Black Hole Class¸¦ ²À ÁöÁ¤ÇØ¾ß ÇÔ
+		// í´ë˜ìŠ¤ê°€ ì§€ì • ì•ˆ ëœ ìƒíƒœ - BT ë…¸ë“œ Details íŒ¨ë„ì—ì„œ Black Hole Classë¥¼ ê¼­ ì§€ì •í•´ì•¼ í•¨
 		return EBTNodeResult::Failed;
 	}
 
@@ -37,12 +37,12 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 		return EBTNodeResult::Failed;
 	}
 
-	// ¼ÒÄÏÀÌ ÀÖÀ¸¸é ¼ÒÄÏÀÇ ·ÎÄÃ ÁÂÇ¥°è ±âÁØÀ¸·Î ¿ÀÇÁ¼ÂÀ» Àû¿ëÇÑ À§Ä¡, ¾øÀ¸¸é Ä¸½¶ »ó´Ü + ¿©À¯ ³ôÀÌ·Î ´ëÃ¼
+	// ì†Œì¼“ì´ ìˆìœ¼ë©´ ì†Œì¼“ì˜ ë¡œì»¬ ì¢Œí‘œê³„ ê¸°ì¤€ìœ¼ë¡œ ì˜¤í”„ì…‹ì„ ì ìš©í•œ ìœ„ì¹˜, ì—†ìœ¼ë©´ ìº¡ìŠ ìƒë‹¨ + ì—¬ìœ  ë†’ì´ë¡œ ëŒ€ì²´
 	FVector SpawnLocation;
 	if (Boss->GetMesh() && Boss->GetMesh()->DoesSocketExist(SpawnSocketName))
 	{
-		// GetSocketTransformÀ¸·Î ¼ÒÄÏÀÇ À§Ä¡+È¸ÀüÀ» °°ÀÌ °¡Á®¿Í¼­,
-		// SpawnOffsetÀ» "¼ÒÄÏÀÌ º¸´Â ¹æÇâ ±âÁØ"À¸·Î º¯È¯ÇÔ (¼ÕÀÌ ¾î¶»°Ô µ¹¾Æ°¡ ÀÖ¾îµµ Ç×»ó °°Àº ¹æÇâÀ¸·Î ¶ç¿öÁü)
+		// GetSocketTransformìœ¼ë¡œ ì†Œì¼“ì˜ ìœ„ì¹˜+íšŒì „ì„ ê°™ì´ ê°€ì ¸ì™€ì„œ,
+		// SpawnOffsetì„ "ì†Œì¼“ì´ ë³´ëŠ” ë°©í–¥ ê¸°ì¤€"ìœ¼ë¡œ ë³€í™˜í•¨ (ì†ì´ ì–´ë–»ê²Œ ëŒì•„ê°€ ìˆì–´ë„ í•­ìƒ ê°™ì€ ë°©í–¥ìœ¼ë¡œ ë„ì›Œì§)
 		const FTransform SocketTransform = Boss->GetMesh()->GetSocketTransform(SpawnSocketName);
 		SpawnLocation = SocketTransform.TransformPosition(SpawnOffset);
 	}
@@ -63,27 +63,27 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 		return EBTNodeResult::Failed;
 	}
 
-	// º¸½º ¸Ş½Ã¿¡ ºÙ¿©¼­, º¸½º°¡ ¿òÁ÷ÀÌ¸é ºí·¢È¦µµ °°ÀÌ µû¶ó°¡°Ô ÇÔ
+	// ë³´ìŠ¤ ë©”ì‹œì— ë¶™ì—¬ì„œ, ë³´ìŠ¤ê°€ ì›€ì§ì´ë©´ ë¸”ë™í™€ë„ ê°™ì´ ë”°ë¼ê°€ê²Œ í•¨
 	if (Boss->GetMesh() && Boss->GetMesh()->DoesSocketExist(SpawnSocketName))
 	{
 		Spawned->AttachToComponent(Boss->GetMesh(), FAttachmentTransformRules::KeepWorldTransform, SpawnSocketName);
 	}
 
-	// BT¿¡¼­ ¼³Á¤ÇÑ Áö¼Ó½Ã°£À» ¾×ÅÍÇÑÅ× ±×´ë·Î ¾Ë·ÁÁÜ.
-	// ÀÌ°É ¾È ÇÏ¸é ¾×ÅÍ ÀÚÃ¼ ±âº»°ª(Duration)ÀÌ¶û ¿©±â ActiveDurationÀÌ ¾î±ß³¯ ¶§
-	// Ç×»ó ´õ ÂªÀº ÂÊÀÌ ¸ÕÀú ²¨¹ö·Á¼­, BT¿¡¼­ ½Ã°£À» ´Ã·Áµµ ¹İ¿µ ¾È µÇ´Â °ÍÃ³·³ º¸ÀÓ
+	// BTì—ì„œ ì„¤ì •í•œ ì§€ì†ì‹œê°„ì„ ì•¡í„°í•œí…Œ ê·¸ëŒ€ë¡œ ì•Œë ¤ì¤Œ.
+	// ì´ê±¸ ì•ˆ í•˜ë©´ ì•¡í„° ìì²´ ê¸°ë³¸ê°’(Duration)ì´ë‘ ì—¬ê¸° ActiveDurationì´ ì–´ê¸‹ë‚  ë•Œ
+	// í•­ìƒ ë” ì§§ì€ ìª½ì´ ë¨¼ì € êº¼ë²„ë ¤ì„œ, BTì—ì„œ ì‹œê°„ì„ ëŠ˜ë ¤ë„ ë°˜ì˜ ì•ˆ ë˜ëŠ” ê²ƒì²˜ëŸ¼ ë³´ì„
 	Spawned->SetDuration(ActiveDuration);
 
 	Spawned->ActivateBlackHole();
 	Memory->SpawnedBlackHole = Spawned;
 
-	// ¹ßµ¿ »ç¿îµå Àç»ı (ºí·¢È¦ ½ºÆù À§Ä¡¿¡¼­ 3D·Î Àç»ı, ÇÑ ¹ø¸¸)
+	// ë°œë™ ì‚¬ìš´ë“œ ì¬ìƒ (ë¸”ë™í™€ ìŠ¤í° ìœ„ì¹˜ì—ì„œ 3Dë¡œ ì¬ìƒ, í•œ ë²ˆë§Œ)
 	if (ActivationSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(Boss, ActivationSound, SpawnLocation, ActivationSoundVolume);
 	}
 
-	// ¹İº¹ »ç¿îµå´Â ¼Õ ¼ÒÄÏ¿¡ ºÙ¿©¼­ °è¼Ó µû¶ó´Ù´Ï°Ô Àç»ı (Duration ³¡³ª¸é CleanUpBlackHole¿¡¼­ Á¤Áö)
+	// ë°˜ë³µ ì‚¬ìš´ë“œëŠ” ì† ì†Œì¼“ì— ë¶™ì—¬ì„œ ê³„ì† ë”°ë¼ë‹¤ë‹ˆê²Œ ì¬ìƒ (Duration ëë‚˜ë©´ CleanUpBlackHoleì—ì„œ ì •ì§€)
 	if (LoopingSound && Boss->GetMesh())
 	{
 		UAudioComponent* LoopComp = UGameplayStatics::SpawnSoundAttached(
@@ -98,7 +98,7 @@ EBTNodeResult::Type UBTT_BossBlackHole::ExecuteTask(UBehaviorTreeComponent& Owne
 		Memory->LoopingSoundComponent = LoopComp;
 	}
 
-	// ¾ÆÁ÷ ¾È ³¡³µ´Ù´Â ¶æ. BT´Â ÀÌ »óÅÂ¸¦ °è¼Ó À¯ÁöÇÏ¸é¼­ ¸Å ÇÁ·¹ÀÓ TickTask¸¦ ºÒ·¯ÁÜ
+	// ì•„ì§ ì•ˆ ëë‚¬ë‹¤ëŠ” ëœ». BTëŠ” ì´ ìƒíƒœë¥¼ ê³„ì† ìœ ì§€í•˜ë©´ì„œ ë§¤ í”„ë ˆì„ TickTaskë¥¼ ë¶ˆëŸ¬ì¤Œ
 	return EBTNodeResult::InProgress;
 }
 
@@ -110,14 +110,14 @@ void UBTT_BossBlackHole::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* Node
 	if (Memory->ElapsedTime >= ActiveDuration)
 	{
 		CleanUpBlackHole(Memory);
-		// ÀÌÁ¦ ³¡³µ´Ù°í BT¿¡°Ô ¾Ë¸² -> ¿©±â¼­ºÎÅÍ ´ÙÀ½ ³ëµå(¶Ç´Â Ã³À½ºÎÅÍ Àç½ÃÀÛ)·Î ³Ñ¾î°¨
+		// ì´ì œ ëë‚¬ë‹¤ê³  BTì—ê²Œ ì•Œë¦¼ -> ì—¬ê¸°ì„œë¶€í„° ë‹¤ìŒ ë…¸ë“œ(ë˜ëŠ” ì²˜ìŒë¶€í„° ì¬ì‹œì‘)ë¡œ ë„˜ì–´ê°
 		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 	}
 }
 
 EBTNodeResult::Type UBTT_BossBlackHole::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-	// º¸½º°¡ Á×°Å³ª ´Ù¸¥ ÀÌÀ¯·Î BT°¡ ÀÌ Task¸¦ Áß°£¿¡ °­Á¦ Á¾·á½ÃÅ³ ¶§ È£ÃâµÊ
+	// ë³´ìŠ¤ê°€ ì£½ê±°ë‚˜ ë‹¤ë¥¸ ì´ìœ ë¡œ BTê°€ ì´ Taskë¥¼ ì¤‘ê°„ì— ê°•ì œ ì¢…ë£Œì‹œí‚¬ ë•Œ í˜¸ì¶œë¨
 	FBTBlackHoleMemory* Memory = reinterpret_cast<FBTBlackHoleMemory*>(NodeMemory);
 	CleanUpBlackHole(Memory);
 	return EBTNodeResult::Aborted;
@@ -132,7 +132,7 @@ void UBTT_BossBlackHole::CleanUpBlackHole(FBTBlackHoleMemory* Memory)
 	}
 	Memory->SpawnedBlackHole = nullptr;
 
-	// ¹İº¹ Àç»ı ÁßÀÌ´ø »ç¿îµå Á¤Áö
+	// ë°˜ë³µ ì¬ìƒ ì¤‘ì´ë˜ ì‚¬ìš´ë“œ ì •ì§€
 	if (Memory->LoopingSoundComponent.IsValid())
 	{
 		Memory->LoopingSoundComponent->Stop();
