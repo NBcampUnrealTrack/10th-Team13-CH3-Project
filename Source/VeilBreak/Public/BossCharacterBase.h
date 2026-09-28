@@ -61,7 +61,8 @@ public:
 	// FallingRock 시전 진행 여부
 	bool IsFallingRockRunning() const { return bFallingRockRunning; }
 	// MagicAttack·FallingRock 중 하나라도 시전 중인지 반환
-	bool IsPatternRunning() const { return bMagicAttackRunning || bFallingRockRunning || bBerserkRunning || bVortexCasting; }
+	bool IsPatternRunning() const 
+	{ return bMagicAttackRunning || bFallingRockRunning || bBerserkRunning || bVortexCasting || bGroundSmashRunning|| bCenterProjectileRunning;; }
 	// 발악 패턴 진행 여부
 	bool IsBerserkRunning() const { return bBerserkRunning; }
 	// 이번 MagicAttack 시전 투사체 생성 성공 여부
@@ -75,6 +76,28 @@ public:
 	float GetChaseStartDistance() const { return ChaseStartDistance; }
 	// 플레이어 추적 종료 거리, cm
 	float GetChaseStopDistance() const { return ChaseStopDistance; }
+
+	//땅찍기, 중앙난사 패턴--------------------------------------------------
+	bool CanStartGroundSmash(AActor* TargetActor) const;
+	bool CanStartCenterProjectile(AActor* TargetActor) const;
+
+	// Task에서 공격 시작·종료를 알릴 때 사용
+	void BeginGroundSmashPattern();
+	void EndGroundSmashPattern(bool StartCooldown);
+
+	void BeginCenterProjectilePattern();
+	void EndCenterProjectilePattern(bool StartCooldown);
+
+	void SetGroundSmashAnimating(bool IsAnimating, int MotionIndex = 8);
+
+	void SetCenterProjectileAnimating(bool IsAnimating);
+
+	bool HasFinishedPhase3Opening() const
+	{
+		return bPhase3OpeningFinished;
+	}
+	//땅찍기, 중앙난사 패턴--------------------------------------------------
+
 protected:
 	// 보스 체력·무적·사망 상태 컴포넌트
 	UPROPERTY()
@@ -231,6 +254,26 @@ protected:
 	// BP Class Defaults에서 숫자 0 체력·페이즈 순환 활성화 여부
 	UPROPERTY()
 	bool bEnablePhaseDebugInput = true;
+
+	//땅찍기, 중앙난사 패턴--------------------------------------------------
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Boss|GroundSmash", meta = (ClampMin = "0.0"))
+	float GroundSmashMinDistance = 700.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Boss|GroundSmash", meta = (ClampMin = "0.0"))
+	float GroundSmashCooldown = 10.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Boss|CenterProjectile", meta = (ClampMin = "0.0"))
+	float CenterProjectileMaxDistance = 500.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Boss|CenterProjectile", meta = (ClampMin = "0.0"))
+	float CenterProjectileCooldown = 30.0f;
+
+
+
+
+
+	//땅찍기, 중앙난사 패턴--------------------------------------------------
+
 private:
 	void RestoreBossAnimationBlueprint();
 	bool bLegacyPatternAnimation = false;
@@ -334,6 +377,22 @@ private:
 	void SpawnVortex();
 	// Cast 모션 종료 후 Idle 반복 재생 복귀
 	void FinishVortexCast();
+	
+	//땅찍기, 중앙난사 패턴--------------------------------------------------
+	bool bGroundSmashRunning = false;
+	bool bCenterProjectileRunning = false;
+
+	double NextGroundSmashAvailableTime = 0.0;
+	double NextCenterProjectileAvailableTime = 0.0;
+
+	bool bGroundSmashAnimating = false;
+	int GroundSmashAnimationIndex = 8;
+
+	bool bCenterProjectileAnimating = false;
+
+	bool bPhase3OpeningFinished = false;
+	//땅찍기, 중앙난사 패턴--------------------------------------------------
+
 	// 체력 0 이벤트 처리, 패턴 중단·이동 및 BT 정지·사망 모션 재생
 	UFUNCTION()
 	void HandleBossDied();
@@ -341,4 +400,5 @@ private:
 	void FinishBossDeathPresentation();
 	// 숫자 0 디버그용 부활, 사망 연출 취소 후 표시·이동·BT 복구
 	void ReviveBossForDebug();
+
 };

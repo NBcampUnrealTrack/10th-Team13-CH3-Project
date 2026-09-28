@@ -20,9 +20,6 @@ protected:
     virtual void ActivateAttack() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-    UPROPERTY(EditDefaultsOnly, Category="Smash|Animation")
-    TObjectPtr<class UAnimSequence> GroundSmashMotion;
-
     UPROPERTY(EditDefaultsOnly, Category="Smash|Animation", meta=(ClampMin="0.0"))
     float ImpactDelay = 0.7f;// 애니메이션 시작 -> 0.7초 뒤 ActivateAttack() 발동됨
 
@@ -63,6 +60,25 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, Category = "Smash|Sound")
     TObjectPtr<class USoundBase> VoiceSound;
+
+    //내려찍기 애니메이션의 각 재생시간
+    UPROPERTY(EditDefaultsOnly, Category = "Smash|PerStrike")
+    TArray<float> AnimationDurations = { 2.0f, 2.0f, 2.0f };
+
+    //애니메이션 시작 후 바닥을 때리는 시점
+    UPROPERTY(EditDefaultsOnly, Category = "Smash|PerStrike")
+    TArray<float> ImpactDelays = { 0.7f, 0.7f, 0.7f };
+
+    //각 동작 시작 시 보이스 음성
+    UPROPERTY(EditDefaultsOnly, Category = "Smash|PerStrike")
+    TArray<TObjectPtr<class USoundBase>> StrikeVoices;
+
+    //각 타격 시 충격음
+    UPROPERTY(EditDefaultsOnly, Category = "Smash|PerStrike")
+    TArray<TObjectPtr<class USoundBase>> StrikeSounds;
+
+
+
 private:
     bool animationRunning = false;
     bool waveFinished = false;
@@ -70,12 +86,6 @@ private:
 
     UPROPERTY()
     TObjectPtr<class USkeletalMeshComponent> BossMesh;
-    UPROPERTY()
-    TObjectPtr<class UAnimationAsset> PreviousAnimation;
-    bool previousLooping = true;
-    bool previousPlaying = true;
-    float previousRate = 1.f;
-    float previousTime = 0.f;
 
     void FinishAnimation();
     void RestoreAnimation();
@@ -99,4 +109,9 @@ private:
     // 두 번째·세 번째 타격 예약용
     FTimerHandle StrikeTimer;
     FTimerHandle PreparationTimer;
+
+    float CurrentAnimationDuration = 0.0f;
+
+    bool SetStrikeSettings(int StrikeIndex);
+
 };

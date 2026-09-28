@@ -2,6 +2,7 @@
 
 
 #include "BTT_CenterProjectile.h"
+#include "BossCharacterBase.h"
 #include "CenterProjectile.h"
 #include "AIController.h"
 #include "BehaviorTree/BehaviorTreeComponent.h"
@@ -37,11 +38,16 @@ EBTNodeResult::Type UBTT_CenterProjectile::ExecuteTask(
         return EBTNodeResult::Failed;
     }
 
-    APawn* Boss = Controller->GetPawn();//보스 찾기
-    if (!IsValid(Boss) || !AttackClass)
+    ABossCharacterBase* Boss =
+        Cast<ABossCharacterBase>(Controller->GetPawn());
+
+    if (!IsValid(Boss) || !AttackClass || Boss->IsPatternRunning())
     {
         return EBTNodeResult::Failed;
     }
+
+    ActiveBoss = Boss;
+    Controller->StopMovement();
 
     // 누가 생성한 공격인지 지정
     FActorSpawnParameters SpawnParams;
@@ -61,9 +67,11 @@ EBTNodeResult::Type UBTT_CenterProjectile::ExecuteTask(
     //생성성공 확인하고 공격
     if (!IsValid(ActiveAttack))
     {
+        CleanupAttack();
         return EBTNodeResult::Failed;
     }
 
+    Boss->BeginCenterProjectilePattern();
     ActiveAttack->StartAttack();
 
     //BT가 다음 행동으로 넘어가도 되는지
@@ -93,12 +101,12 @@ void UBTT_CenterProjectile::TickTask(
     }
 
     // 공격이 끝났으면 완료
-    CleanupAttack();
+    CleanupAttack(true);
     FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
 }
 
 //오브젝트를 Destroy하고 보관하던 변수를 null로 만듬
-void UBTT_CenterProjectile::CleanupAttack()
+void UBTT_CenterProjectile::CleanupAttack(bool StartCooldown)
 {
     if (IsValid(ActiveAttack))
     {
@@ -111,6 +119,13 @@ void UBTT_CenterProjectile::CleanupAttack()
     }
 
     ActiveAttack = nullptr;
+
+    if (IsValid(ActiveBoss))
+    {
+        ActiveBoss->EndCenterProjectilePattern(StartCooldown);
+    }
+
+    ActiveBoss = nullptr;
 }
 
 EBTNodeResult::Type UBTT_CenterProjectile::AbortTask(

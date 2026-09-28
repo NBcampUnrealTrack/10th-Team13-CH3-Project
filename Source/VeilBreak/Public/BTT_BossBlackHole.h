@@ -5,7 +5,6 @@
 #include "BTT_BossBlackHole.generated.h"
 
 class ABossBlackHole;
-class UAnimSequence;
 class USoundBase;
 class UAudioComponent;
 
@@ -36,7 +35,7 @@ protected:
 
 	/** 블랙홀을 유지할 시간(초). BossBlackHole 자체 Duration 값과 굳이 맞출 필요는 없음 - 이쪽이 최종 기준 */
 	UPROPERTY(EditAnywhere, Category = "BlackHole")
-	float ActiveDuration = 20.f;
+	float ActiveDuration = 3.f;
 
 	/** 보스 메시에서 블랙홀을 스폰할 소켓 이름. 소켓이 없으면 캡슐 상단으로 자동 대체됨 */
 	UPROPERTY(EditAnywhere, Category = "BlackHole")
@@ -49,14 +48,6 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, Category = "BlackHole")
 	FVector SpawnOffset = FVector(0.f, 0.f, 15.f);
-
-	/** 블랙홀 시전 시 재생할 애니메이션. 비워두면 애니메이션 없이 스폰만 됨 */
-	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation")
-	TObjectPtr<UAnimSequence> CastAnimation;
-
-	/** 블랙홀 종료 후 되돌아갈 애니메이션(보통 Idle). 비워두면 캐스트 애니메이션 마지막 프레임에 멈춰있음 */
-	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation")
-	TObjectPtr<UAnimSequence> IdleAnimationAfter;
 
 	/** 블랙홀 시전 시 재생할 사운드. 비워두면 소리 없음 */
 	UPROPERTY(EditAnywhere, Category = "BlackHole|Presentation")
@@ -79,7 +70,6 @@ private:
 	struct FBTBlackHoleMemory
 	{
 		TWeakObjectPtr<ABossBlackHole> SpawnedBlackHole;
-		TWeakObjectPtr<class ABossCharacterBase> Boss;
 		TWeakObjectPtr<UAudioComponent> LoopingSoundComponent;
 		float ElapsedTime = 0.f;
 	};

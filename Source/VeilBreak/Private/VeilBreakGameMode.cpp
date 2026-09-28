@@ -13,6 +13,8 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AmmoSpawnVolume.h"
+#include "Engine/World.h"
+#include "PlayerCombatComponent.h"
 
 AVeilBreakGameMode::AVeilBreakGameMode()
 {
@@ -55,6 +57,35 @@ void AVeilBreakGameMode::RestartPlayer(AController* NewPlayer)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("플레이어 Pawn 생성 확인 실패"));
 		return;
+	}
+
+	// 생성된 플레이어의 전투 컴포넌트 검색
+	UPlayerCombatComponent* PlayerCombat =
+		PlayerPawn->FindComponentByClass<UPlayerCombatComponent>();
+
+	if (IsValid(PlayerCombat))
+	{
+		// 실제 탄환 소비 알림 → 사용 탄환 집계
+		PlayerCombat->OnAmmoSpent.AddUniqueDynamic(
+			this,
+			&AVeilBreakGameMode::ReportAmmoSpent
+		);
+
+		// 보스 명중 알림 → 명중 횟수 집계
+		PlayerCombat->OnBossShotLanded.AddUniqueDynamic(
+			this,
+			&AVeilBreakGameMode::ReportBossHit
+		);
+
+		UE_LOG(LogTemp, Log, TEXT("[BattleRecord] 플레이어 이벤트 구독 완료"));
+	}
+	else
+	{
+		UE_LOG(
+			LogTemp,
+			Warning,
+			TEXT("[BattleRecord] PlayerCombatComponent를 찾을 수 없음")
+		);
 	}
 
 	//플레이어의 체력 컴포넌트를 찾음
@@ -154,18 +185,19 @@ void AVeilBreakGameMode::PrepareBattle()
 		);
 		return;
 	}
+	
+	//UI가 이전 기록을 읽지 않도록 초기화
+	VeilBreakGameState->ResetBattleRecord();
+	BattleStartTimeSeconds = 0.0;
 
 	VeilBreakGameState->SetCurrentGameLoopState(
-		EVeilBreakGameLoopState::Waiting
-	);
+		EVeilBreakGameLoopState::Waiting);
 
 	VeilBreakGameState->SetCurrentBossPhase(
-		EBossPhase::Phase1
-	);
+		EBossPhase::Phase1);
 
 	VeilBreakGameState->SetBattleResult(
-		EVeilBreakBattleResult::None
-	);
+		EVeilBreakBattleResult::None);
 
 	UE_LOG(LogTemp, Log, TEXT("황금돼지 전투 준비 완료"));
 }
@@ -175,29 +207,33 @@ void AVeilBreakGameMode::StartBattle()
 	AVeilBreakGameState* VeilBreakGameState =
 		GetGameState<AVeilBreakGameState>();
 
-	if (!VeilBreakGameState)
+	UWorld* World = GetWorld();
+
+	if (!VeilBreakGameState || !World)
 	{
 		return;
 	}
 
+	// 대기 상태에서만 전투 시작 가능
 	if (VeilBreakGameState->GetCurrentGameLoopState()
 		!= EVeilBreakGameLoopState::Waiting)
 	{
 		return;
 	}
 
+	// 실제 전투 시작을 기준으로 기록 초기화
+	VeilBreakGameState->ResetBattleRecord();
+	BattleStartTimeSeconds = World->GetTimeSeconds();
+	bBattleEnded = false;
+
 	VeilBreakGameState->SetCurrentGameLoopState(
-		EVeilBreakGameLoopState::Combat
-	);
+		EVeilBreakGameLoopState::Combat);
 
 	SpawnAmmoForArea(FName(TEXT("AmmoSpawn_Phase1")));
 
 	UE_LOG(LogTemp, Log, TEXT("황금돼지 전투 시작"));
 
-	// BP_GameMode에 전투 시작 사실 전달
 	OnBattleStarted();
-
-
 }
 
 void AVeilBreakGameMode::NotifyBossPhaseChanged(
@@ -256,8 +292,7 @@ void AVeilBreakGameMode::NotifyPlayerDefeated()
 }
 
 void AVeilBreakGameMode::EndBattle(
-	EVeilBreakBattleResult Result
-)
+	EVeilBreakBattleResult Result)
 {
 	if (bBattleEnded)
 	{
@@ -284,7 +319,29 @@ void AVeilBreakGameMode::EndBattle(
 		return;
 	}
 
+	// 먼저 집계를 닫아 이후 보고를 차단
 	bBattleEnded = true;
+
+	// 전투 종료 시 시간을 확정
+	if (const UWorld* World = GetWorld())
+	{
+		const double ElapsedSeconds =
+			World->GetTimeSeconds() - BattleStartTimeSeconds;
+
+		VeilBreakGameState->BattleDurationSeconds =
+			static_cast<float>(FMath::Max(0.0, ElapsedSeconds));
+	}
+
+	UE_LOG(
+		LogTemp,
+		Log,
+		TEXT("[BattleRecord] 시간=%.2f초 / 사용=%d발 / 명중=%d발 / 명중률=%.1f%%"),
+		VeilBreakGameState->BattleDurationSeconds,
+		VeilBreakGameState->AmmoSpent,
+		VeilBreakGameState->BossHitCount,
+		VeilBreakGameState->GetAccuracyPercent()
+	);
+
 	ClearAllSpawnedAmmo();
 
 	VeilBreakGameState->SetBattleResult(Result);
@@ -450,4 +507,56 @@ void AVeilBreakGameMode::MoveActorsToPhaseArea(EBossPhase NewPhase)
 		bPlayerMoved ? TEXT("성공") : TEXT("실패"),
 		bBossMoved ? TEXT("성공") : TEXT("실패")
 	);
+}
+
+void AVeilBreakGameMode::ReportAmmoSpent(int32 Amount)
+{
+	if (bBattleEnded || Amount <= 0)
+	{
+		return;
+	}
+
+	AVeilBreakGameState* GS =
+		GetGameState<AVeilBreakGameState>();
+
+	if (!GS ||GS->GetCurrentGameLoopState()
+		!= EVeilBreakGameLoopState::Combat)
+	{
+		return;
+	}
+
+	GS->AmmoSpent += Amount;
+
+	UE_LOG(
+		LogTemp, Log,
+		TEXT("[BattleRecord] 탄환 소비: +%d / 누적=%d"),
+		Amount,
+		GS->AmmoSpent
+	);
+}
+
+void AVeilBreakGameMode::ReportBossHit()
+{
+	if (bBattleEnded)
+	{
+		return;
+	}
+
+	AVeilBreakGameState* GS =
+		GetGameState<AVeilBreakGameState>();
+
+	if (!GS ||GS->GetCurrentGameLoopState()
+		!= EVeilBreakGameLoopState::Combat)
+	{
+		return;
+	}
+
+	++GS->BossHitCount;
+
+	UE_LOG(
+		LogTemp, Log,
+		TEXT("[BattleRecord] 보스 명중: 누적=%d"),
+		GS->BossHitCount
+	);
+
 }

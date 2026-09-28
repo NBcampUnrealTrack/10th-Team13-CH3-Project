@@ -1,5 +1,4 @@
 #include "GroundSmashAttack.h"
-#include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 #include "NiagaraComponent.h"
@@ -8,11 +7,9 @@
 #include "Components/CapsuleComponent.h"
 #include "PlayerHealthComponent.h"
 #include "Components/SkeletalMeshComponent.h"
-#include "Animation/AnimSequence.h"
-#include "Animation/AnimSingleNodeInstance.h"
 #include "TimerManager.h"
 #include "Sound/SoundBase.h"
-
+#include "BossCharacterBase.h"
 
 AGroundSmashAttack::AGroundSmashAttack()
 {
@@ -158,6 +155,12 @@ void AGroundSmashAttack::Tick(float DeltaTime)//파장을 조금씩 확대
         !waveActive &&
         !GetWorldTimerManager().IsTimerActive(StrikeTimer))
     {
+        if (!SetStrikeSettings(CurrentStrikeCount))
+        {
+            CancelAttack();
+            return;
+        }
+
         // 1번 찍었으면 다음 타격은 6초, 2번이면 12초
         const float NextStrikeTime =
             CurrentStrikeCount * StrikeInterval;
@@ -227,26 +230,6 @@ void AGroundSmashAttack::Tick(float DeltaTime)//파장을 조금씩 확대
             );
         }
     }
-
-    const float HalfWidth = FMath::Max(WaveWidth, 0.0f) * 0.5f;
-    const float InnerRadius =
-        FMath::Max(CurrentRadius - HalfWidth, 0.0f);
-    const float OuterRadius = CurrentRadius + HalfWidth;
-
-    // 테스트용: 액터 위치를 중심으로 수평 원 표시
-    const FVector Center = GetActorLocation();
-
-    DrawDebugCircle(
-        GetWorld(), Center, InnerRadius, 64,
-        FColor::Yellow, false, -1.0f, 0, 2.0f,
-        FVector::ForwardVector, FVector::RightVector, false
-    );
-
-    DrawDebugCircle(
-        GetWorld(), Center, OuterRadius, 64,
-        FColor::Red, false, -1.0f, 0, 2.0f,
-        FVector::ForwardVector, FVector::RightVector, false
-    );
 
     if (CurrentRadius >= EndRadius)
     {
@@ -362,44 +345,35 @@ void AGroundSmashAttack::CheckPlayerHit(float PreviousRadius)
 bool AGroundSmashAttack::StartAnimatedAttack()//애니메이션부터 시작
 {
     ACharacter* Boss = Cast<ACharacter>(GetOwner());//지정한 보스
-    if (!IsValid(Boss) || IsAttacking()) return false;
+    if (!IsValid(Boss) || IsAttacking()) 
+        return false;
+
     BossMesh = Boss->GetMesh();
 
-    if (!IsValid(BossMesh) || !GroundSmashMotion)//보스 메시와 애니메이션이 있는지?
-    {
-        UE_LOG(LogTemp, Warning, TEXT("GroundSmash Ani Choose"));
-        return false;
-    }
-    UAnimSingleNodeInstance* Previous = BossMesh->GetSingleNodeInstance();//현재 애니메이션 검사하기
-    if (!Previous)
-    {
-        return false;
-    }
-    const float Duration = GroundSmashMotion->GetPlayLength();
-    if (Duration <= 0.f || ImpactDelay < 0.f || ImpactDelay >= Duration)
+    if (!IsValid(BossMesh))
     {
         return false;
     }
 
-    PreviousAnimation = Previous->GetCurrentAsset();
-    previousLooping = Previous->IsLooping();
-    previousPlaying = Previous->IsPlaying();
-    previousRate = Previous->GetPlayRate();
-    previousTime = Previous->GetCurrentTime();
 
-    // 준비 시간이 애니메이션의 타격 시점보다 짧으면 실행 불가
+    //처음 타격 시간, 소리 가져오기
+    if (!SetStrikeSettings(0))
+    {
+        return false;
+    }
+
+    //준비시간 너무 짧으면 안댐
     if (PreparationTime < ImpactDelay)
     {
-        UE_LOG(LogTemp, Warning, TEXT("PreparationTime must be >= ImpactDelay"));
+        UE_LOG(LogTemp, Warning,
+            TEXT("PreparationTime must be >= ImpactDelay"));
         return false;
     }
 
     CurrentStrikeCount = 0;
-
-    // 준비 시간이 지나면 0부터 공격 실행 시간을 계산
     PatternElapsedTime = -PreparationTime;
 
-    // 준비 시간이 끝나면 첫 파장 발동
+    //준비 시간 지나면 파장
     WarningDuration = PreparationTime;
     StartAttack();
 
@@ -407,11 +381,11 @@ bool AGroundSmashAttack::StartAnimatedAttack()//애니메이션부터 시작
     {
         return false;
     }
-    
-    // 첫 파장이 나올 때 애니메이션의 타격 순간도 맞추기
+
+    // 파장 나오기 전에 애니 시작
     const float AnimationDelay = PreparationTime - ImpactDelay;
 
-    if (AnimationDelay <= 0.f)
+    if (AnimationDelay <= 0.0f)
     {
         PlaySmashAnimation();
     }
@@ -431,19 +405,19 @@ bool AGroundSmashAttack::StartAnimatedAttack()//애니메이션부터 시작
 
 void AGroundSmashAttack::RestoreAnimation()
 {
-    if (!animationRunning) return;
-    animationRunning = false;
-    if (!IsValid(BossMesh)) return;
-
-    UAnimSingleNodeInstance* Current = BossMesh->GetSingleNodeInstance();
-    if (!Current || Current->GetCurrentAsset() != GroundSmashMotion) return;
-
-    BossMesh->PlayAnimation(PreviousAnimation, previousLooping);
-    BossMesh->SetPlayRate(previousRate);
-    BossMesh->SetPosition(previousTime, false);
-    if (UAnimSingleNodeInstance* Restored = BossMesh->GetSingleNodeInstance())
+    if (!animationRunning)
     {
-        Restored->SetPlaying(previousPlaying);
+        return;
+    }
+
+    animationRunning = false;
+    GetWorldTimerManager().ClearTimer(AnimationTimer);
+
+    ABossCharacterBase* Boss = Cast<ABossCharacterBase>(GetOwner());
+
+    if (IsValid(Boss))
+    {
+        Boss->SetGroundSmashAnimating(false);
     }
 }
 
@@ -471,27 +445,78 @@ void AGroundSmashAttack::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AGroundSmashAttack::PlaySmashAnimation()
 {
+    ABossCharacterBase* Boss = Cast<ABossCharacterBase>(GetOwner());
+
+    if (!IsValid(Boss))
+    {
+        CancelAttack();
+        return;
+    }
+
     animationRunning = true;
     waveFinished = false;
 
-    BossMesh->PlayAnimation(GroundSmashMotion, false);
-    BossMesh->SetPlayRate(1.f);
+    //타격 전 횟수는 0, 1, 2 애니 번호는 8, 9, 10
+    const int MotionIndex = 8 + CurrentStrikeCount;
+    Boss->SetGroundSmashAnimating(true, MotionIndex);
 
-    const float Duration = GroundSmashMotion->GetPlayLength();
-
+    //동작의 재생 시간이 지나면 종료
     GetWorldTimerManager().SetTimer(
         AnimationTimer,
         this,
         &AGroundSmashAttack::FinishAnimation,
-        Duration,
+        CurrentAnimationDuration,
         false
     );
+
     if (VoiceSound)
     {
         UGameplayStatics::PlaySoundAtLocation(
             this,
             VoiceSound,
-            BossMesh->GetComponentLocation()
+            Boss->GetActorLocation()
         );
     }
+}
+
+bool AGroundSmashAttack::SetStrikeSettings(int StrikeIndex)
+{
+    // 해당 순서의 시간 설정이 있는지 확인
+    if (!AnimationDurations.IsValidIndex(StrikeIndex) ||
+        !ImpactDelays.IsValidIndex(StrikeIndex))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Missing strike settings: %d"),
+            StrikeIndex);
+        return false;
+    }
+
+    const float Duration = AnimationDurations[StrikeIndex];
+    const float Delay = ImpactDelays[StrikeIndex];
+
+    // 타격은 애니메이션이 끝나기 전에 발생해야 함
+    if (Duration <= 0.0f || Delay < 0.0f || Delay >= Duration)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Invalid strike timing: %d"),
+            StrikeIndex);
+        return false;
+    }
+
+    CurrentAnimationDuration = Duration;
+    ImpactDelay = Delay;
+
+    // 소리 설정이 없으면 무음
+    VoiceSound = nullptr;
+    SmashSound = nullptr;
+
+    if (StrikeVoices.IsValidIndex(StrikeIndex))
+    {
+        VoiceSound = StrikeVoices[StrikeIndex];
+    }
+
+    if (StrikeSounds.IsValidIndex(StrikeIndex))
+    {
+        SmashSound = StrikeSounds[StrikeIndex];
+    }
+
+    return true;
 }

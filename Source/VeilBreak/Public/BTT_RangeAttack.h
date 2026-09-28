@@ -27,10 +27,10 @@ protected:
 private:
     UPROPERTY()
     TObjectPtr<AGroundSmashAttack> ActiveAttack;//실제로 생성된 공격 액터
-    void CleanupAttack();//남은 공격 정리
-    /*
-    AttackClass  → 생성할 프리팹에 가까움
-    ActiveAttack → Instantiate로 생성한 오브젝트에 가까움
-    */
+    
+    void CleanupAttack(bool StartCooldown = false);
+
+    UPROPERTY()
+    TObjectPtr<class ABossCharacterBase> ActiveBoss;
 
 };

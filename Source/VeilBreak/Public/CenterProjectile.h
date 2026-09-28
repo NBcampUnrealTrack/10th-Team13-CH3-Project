@@ -54,18 +54,7 @@ protected:
 
 	FTimerHandle AnimationTimer;
 
-	UPROPERTY()
-	TObjectPtr<class USkeletalMeshComponent> BossMesh;
-
-	UPROPERTY()
-	TObjectPtr<class UAnimationAsset> PreviousAnimation;
-
 	bool AnimationPlaying = false;
-	bool PreviousLooping = false;
-	bool PreviousPlaying = false;
-
-	float PreviousPlayRate = 1.0f;
-	float PreviousTime = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<class UAnimSequence> FireMotion;//발사애니

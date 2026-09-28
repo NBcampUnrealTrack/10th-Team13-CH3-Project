@@ -42,6 +42,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game Loop")
 	void RestartBattle();
 
+	// 실제 발사로 소비한 탄환 수 보고
+	UFUNCTION(BlueprintCallable, Category = "Battle Record")
+	void ReportAmmoSpent(int32 Amount = 1);
+
+	// 탄환 하나가 명중했음 보고
+	UFUNCTION(BlueprintCallable, Category = "Battle Record")
+	void ReportBossHit();
+
 protected:
 	// 지정한 구역의 볼륨에서 탄약 생성
 	void SpawnAmmoForArea(FName AreaTag);
@@ -99,4 +107,7 @@ protected:
 
 	// 보스의 페이즈 변경·사망 이벤트를 GameMode에 연결
 	void BindBossEvents();
+
+	// 전투가 시작된 게임 시각
+	double BattleStartTimeSeconds = 0.0;
 };

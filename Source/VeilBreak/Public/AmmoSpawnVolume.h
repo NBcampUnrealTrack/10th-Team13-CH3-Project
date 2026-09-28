@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "TimerManager.h"
 #include "AmmoSpawnVolume.generated.h"
 
 class UBoxComponent;
@@ -24,6 +25,14 @@ public:
 	void ClearSpawnedAmmo();
 
 protected:
+	// 레벨 종료 또는 볼륨 제거 시 타이머 정리
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	// 아이템이 모두 사라진 것을 확인한 뒤 재생성까지의 대기 시간
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Ammo Spawn",
+		meta = (ClampMin = "0.1"))
+	float RespawnDelay = 3.0f;
+
 	// 생성할 공간
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Ammo Spawn")
 	TObjectPtr<UBoxComponent> SpawnBox;
@@ -63,6 +72,18 @@ protected:
 	float MaxGroundSlopeDegrees = 30.0f;
 
 private:
+	// 남은 아이템 확인
+	void CheckRemainingAmmo();
+
+	// 대기 시간이 지난 뒤 재생성
+	void RespawnAmmo();
+
+	// 주기적인 확인용 타이머
+	FTimerHandle AmmoCheckTimerHandle;
+
+	// 재생성 대기용 타이머
+	FTimerHandle AmmoRespawnTimerHandle;
+
 	bool FindSpawnLocation(FVector& OutLocation) const;
 
 	bool bSpawnRequested = false;

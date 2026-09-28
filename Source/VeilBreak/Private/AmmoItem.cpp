@@ -5,6 +5,8 @@
 #include "GameFramework/Pawn.h"
 #include "PlayerCombatComponent.h"
 #include "PlayerHealthComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 
 AAmmoItem::AAmmoItem()
 {
@@ -154,7 +156,15 @@ void AAmmoItem::TryPickup(AActor* OtherActor)
 		Combat->GetReserveAmmo()
 	);
 
-	// 추가 접촉을 막고 아이템 제거
+	// 추가 접촉 방지
 	SetActorEnableCollision(false);
+
+	// 실제 탄약 보충에 성공한 경우에만 효과음 재생
+	if (PickupSound)
+	{
+		UGameplayStatics::PlaySound2D(this, PickupSound);
+	}
+
+	// 아이템 제거
 	Destroy();
 }
