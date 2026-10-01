@@ -1,18 +1,18 @@
-#pragma once
+ï»¿#pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "PlayerHealthComponent.generated.h"
 
-// Ã¼·Â º¯°æÀ» UI¿¡ Àü´Ş
+// ì²´ë ¥ ë³€ê²½ì„ UIì— ì „ë‹¬
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(
 	FOnHealthChanged, float, CurrentHealth, float, MaxHealth
 );
 
-// »ç¸Á ½Ã ÇÑ ¹ø Àü´Ş
+// ì‚¬ë§ ì‹œ í•œ ë²ˆ ì „ë‹¬
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPlayerDeath);
 
-// ½ÇÁ¦ HP °¨¼Ò°¡ ¹ß»ıÇÑ ÇÇÇØ¿¡¸¸ Àü´Ş (È¸º¹¿¡´Â È£ÃâÇÏÁö ¾ÊÀ½)
+// ì‹¤ì œ HP ê°ì†Œê°€ ë°œìƒí•œ í”¼í•´ì—ë§Œ ì „ë‹¬ (íšŒë³µì—ëŠ” í˜¸ì¶œí•˜ì§€ ì•ŠìŒ)
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
 	FOnPlayerDamageReceived, float, DamageAmount
 );
@@ -23,66 +23,66 @@ class VEILBREAK_API UPlayerHealthComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	// »ı¼ºÀÚ
+	// ìƒì„±ì
 	UPlayerHealthComponent();
 
-	// ÁöÁ¤ÇÑ ÇÇÇØ Àû¿ë
+	// ì§€ì •í•œ í”¼í•´ ì ìš©
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void ApplyDamage(float DamageAmount);
 
-	// ÁöÁ¤ÇÑ ¾ç¸¸Å­ È¸º¹
+	// ì§€ì •í•œ ì–‘ë§Œí¼ íšŒë³µ
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void Heal(float HealAmount);
 
-	// Ã¼·Â ¹× »ç¸Á »óÅÂ ÃÊ±âÈ­ (Ä³¸¯ÅÍ ºÎÈ° ¿¬ÃâÀº º°µµ)
+	// ì²´ë ¥ ë° ì‚¬ë§ ìƒíƒœ ì´ˆê¸°í™” (ìºë¦­í„° ë¶€í™œ ì—°ì¶œì€ ë³„ë„)
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void ResetHealth();
 
-	// ÇöÀç Ã¼·Â Á¶È¸
+	// í˜„ì¬ ì²´ë ¥ ì¡°íšŒ
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetCurrentHealth() const;
 
-	// ÃÖ´ë Ã¼·Â Á¶È¸
+	// ìµœëŒ€ ì²´ë ¥ ì¡°íšŒ
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetMaxHealth() const;
 
-	// »ç¸Á »óÅÂ Á¶È¸
+	// ì‚¬ë§ ìƒíƒœ ì¡°íšŒ
 	UFUNCTION(BlueprintPure, Category = "Health")
 	bool IsDead() const;
 
 public:
-	// Ã¼·Â UI °»½Å
+	// ì²´ë ¥ UI ê°±ì‹ 
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnHealthChanged OnHealthChanged;
 
-	// »ç¸Á Ã³¸®
+	// ì‚¬ë§ ì²˜ë¦¬
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnPlayerDeath OnPlayerDeath;
 
-	// ÇÇ°İ »ç¿îµå¿Í ÆÄÆ¼Å¬ Ã³¸®
+	// í”¼ê²© ì‚¬ìš´ë“œì™€ íŒŒí‹°í´ ì²˜ë¦¬
 	UPROPERTY(BlueprintAssignable, Category = "Health")
 	FOnPlayerDamageReceived OnDamageReceived;
 
 protected:
-	// ½ÃÀÛ Ã¼·Â ÃÊ±âÈ­
+	// ì‹œì‘ ì²´ë ¥ ì´ˆê¸°í™”
 	virtual void BeginPlay() override;
 
 private:
-	// Ã¼·Â Á¦ÇÑ ¹× º¯°æ ÀÌº¥Æ® Àü´Ş
+	// ì²´ë ¥ ì œí•œ ë° ë³€ê²½ ì´ë²¤íŠ¸ ì „ë‹¬
 	void SetCurrentHealth(float NewHealth);
 
-	// »ç¸Á »óÅÂ ¹× ÀÌº¥Æ® Ã³¸®
+	// ì‚¬ë§ ìƒíƒœ ë° ì´ë²¤íŠ¸ ì²˜ë¦¬
 	void HandleDeath();
 
-	// ÃÖ´ë Ã¼·Â
+	// ìµœëŒ€ ì²´ë ¥
 	UPROPERTY(EditDefaultsOnly, Category = "Health")
-	float MaxHealth = 10000000.0f;
+	float MaxHealth = 100.0f;
 
-	// ÇöÀç Ã¼·Â
+	// í˜„ì¬ ì²´ë ¥
 	UPROPERTY(VisibleInstanceOnly, Category = "Health")
-	float CurrentHealth = 10000000.0f;
+	float CurrentHealth = 100.0f;
 
-	// »ç¸Á ¿©ºÎ
+	// ì‚¬ë§ ì—¬ë¶€
 	UPROPERTY(VisibleInstanceOnly, Category = "Health")
 	bool bIsDead = false;
 };
